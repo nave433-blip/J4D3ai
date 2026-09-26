@@ -904,6 +904,94 @@ def p2p_discovery(port: int = typer.Option(11437, "--port", help="TCP port to li
                          persist_path=persist or None)
 
 @app.command()
+def p2p_pair():
+    """Print a pairing code so another Cortana on your LAN can join you."""
+    from core.p2p_pairing import make_pairing_code, render_pairing_qr
+    code, info = make_pairing_code()
+    if info["token_generated"]:
+        console.print("[yellow]No P2P token was set — generated a fresh one for pairing.[/yellow]")
+    console.print(f"\n[bold cyan]Pairing code for '{info['name']}'[/bold cyan] "
+                  f"(token fingerprint [dim]{info['token_fingerprint']}[/dim], LAN endpoint {info['endpoint']}):")
+    console.print(f"\n[bold green]{code}[/bold green]\n")
+    console.print("On the other machine, run: [bold]cortana p2p-join <code>[/bold]")
+    qr = render_pairing_qr(code)
+    if qr:
+        console.print("[dim]Or scan:[/dim]")
+        console.print(qr)
+    else:
+        console.print("[dim](Install the 'qrcode' package to also show a scannable QR code.)[/dim]")
+
+@app.command()
+def p2p_join(code: str = typer.Argument(..., help="Pairing code from 'cortana p2p-pair'"),
+             yes: bool = typer.Option(False, "--yes", help="Replace existing P2P token without asking")):
+    """Join a peer using its pairing code (LAN discovery; see p2p-pair)."""
+    from core.p2p_pairing import join_pairing
+    res = join_pairing(code, assume_yes=yes)
+    if res["ok"]:
+        console.print(f"[green]✅ Paired with '{res['peer']}' at {res['ip']}:{res['port']} "
+                      f"(token fingerprint {res['token_fingerprint']}).[/green]")
+    else:
+        console.print(f"[red]❌ {res['error']}[/red]")
+        if res.get("hint"):
+            console.print(f"[yellow]{res['hint']}[/yellow]")
+
+@app.command()
+def p2p_message(peer_ip: str = typer.Argument(..., help="Peer IP address"),
+                text: str = typer.Argument(..., help="Message text"),
+                port: int = typer.Option(11435, "--port", help="Peer P2P port")):
+    """Send a direct text message to a peer's inbox."""
+    from core.p2p import p2p_send_message
+    res = p2p_send_message(peer_ip, text, port=port)
+    if res["ok"]:
+        console.print("[green]✅ Message delivered.[/green]")
+    else:
+        console.print(f"[red]❌ {res.get('error', res)}[/red]")
+
+@app.command()
+def p2p_inbox(clear: bool = typer.Option(False, "--clear", help="Empty the inbox after listing"),
+              limit: int = typer.Option(20, "--limit", help="How many messages to show")):
+    """List messages peers have sent to this node's inbox."""
+    from core.p2p import p2p_inbox as read_inbox, p2p_inbox_clear
+    import datetime
+    msgs = read_inbox(limit=limit)
+    if not msgs:
+        console.print("[dim]Inbox is empty.[/dim]")
+    else:
+        for m in msgs:
+            ts = datetime.datetime.fromtimestamp(m.get("timestamp", 0)).strftime("%Y-%m-%d %H:%M:%S")
+            console.print(f"[cyan]{ts}[/cyan] [magenta]{m.get('from_ip')}[/magenta] "
+                          f"[dim]({str(m.get('from_node_id'))[:8]}…)[/dim]: {m.get('text')}")
+    if clear:
+        n = p2p_inbox_clear()
+        console.print(f"[yellow]Cleared {n} message(s).[/yellow]")
+
+@app.command(name="p2p-peers")
+def p2p_peers_cmd():
+    """Show merged LAN + global peer presence (deduped by node id)."""
+    from core.p2p import p2p_peers
+    from rich.table import Table
+    peers = p2p_peers()
+    if not peers:
+        console.print("[yellow]No peers seen. (Start 'cortana p2p-server' on another machine, or configure a discovery server.)[/yellow]")
+        return
+    table = Table(title="CORTANA P2P Presence", border_style="cyan")
+    table.add_column("Node"); table.add_column("Name"); table.add_column("Version")
+    table.add_column("Sources"); table.add_column("Endpoint"); table.add_column("Last seen")
+    import datetime
+    for p in peers:
+        if "lan" in p["sources"] and p["lan_endpoint"]:
+            ep = f"{p['lan_endpoint']['ip']}:{p['lan_endpoint']['port']}"
+        elif p["global_endpoint"]:
+            ep = f"{p['global_endpoint']['host']}:{p['global_endpoint']['port']}"
+        else:
+            ep = "?"
+        ls = p["last_seen"]
+        ls_s = datetime.datetime.fromtimestamp(ls).strftime("%H:%M:%S") if ls else "—"
+        table.add_row(p["node_id"][:12], p["name"], p["version"],
+                      ",".join(p["sources"]), ep, ls_s)
+    console.print(table)
+
+@app.command()
 def restart():
     console.print("[yellow]🔄 Restarting CORTANA...[/yellow]")
     os.execv(sys.executable, ['python3'] + sys.argv)

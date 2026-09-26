@@ -198,14 +198,21 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
                 capabilities = hive_mod.local_capabilities()
             except Exception:
                 capabilities = {"providers": [], "models": [], "features": []}
+            try:
+                from tools.hardware import get_node_id
+                node_id = get_node_id()
+            except Exception:
+                node_id = "unknown"
             status_data = {
                 "status": "online",
+                "node_id": node_id,
                 "name": cfg.get("cortana_name", "Cortana"),
                 "version": CURRENT_VERSION,
                 "model": cfg.get("cortana_model", "unknown"),
                 "local_models": cfg.get("detected_local_models", []),
                 "p2p_enabled": cfg.get("p2p_enabled", True),
                 "hive_load": health,
+                "last_seen": time.time(),
                 # Capability registry: provider/model NAMES only.
                 # API keys and tokens are NEVER advertised or transmitted.
                 "capabilities": capabilities,
@@ -679,6 +686,118 @@ def scan_for_cortana_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=Fal
     """Backwards-compatible wrapper returning just the peer IPs."""
     return sorted({ip for ip, _port in scan_for_cortana_peer_endpoints(
         port, timeout, use_tls, verify_tls, discovery_port)})
+
+
+def _parse_endpoint(endpoint, default_port=11435):
+    """Split a discovery-server endpoint ('host', 'host:port', 'http://h:p')
+    into (host, port). Returns (None, None) when unparseable."""
+    if not endpoint:
+        return None, None
+    ep = str(endpoint).strip()
+    if "://" in ep:
+        ep = ep.split("://", 1)[1]
+    ep = ep.rstrip("/")
+    if ":" in ep and not ep.startswith("["):
+        host, _, port_s = ep.rpartition(":")
+        try:
+            return host or None, int(port_s)
+        except ValueError:
+            return ep, default_port
+    return ep or None, default_port
+
+
+def p2p_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
+              discovery_port=11436):
+    """Merged presence list: LAN peers (UDP discovery) + global peers
+    (discovery server), deduplicated by node_id.
+
+    Returns a list of dicts, each shaped like::
+
+        {"node_id": ..., "name": ..., "version": ...,
+         "sources": ["lan", "global"],          # one or both
+         "lan_endpoint": {"ip": ..., "port": ...} | None,
+         "global_endpoint": {"host": ..., "port": ...} | None,
+         "last_seen": <unix ts> | None}
+
+    ``last_seen`` for LAN peers is the time of the last successful status
+    probe; for global peers it is the discovery server's heartbeat stamp.
+    Deliberately skips the slow /24 subnet sweep that
+    :func:`scan_for_cortana_peer_endpoints` performs — presence is about who
+    announced themselves, not a port scan.
+    """
+    from core.config import load_config
+    cfg = load_config()
+    scheme = _p2p_scheme(use_tls, cfg)
+    if scheme == "https" and not verify_tls:
+        _quiet_insecure_warnings()
+
+    merged = {}  # node_id -> entry
+
+    def _entry(node_id):
+        return merged.setdefault(node_id, {
+            "node_id": node_id, "name": "unknown", "version": "unknown",
+            "sources": [], "lan_endpoint": None, "global_endpoint": None,
+            "last_seen": None,
+        })
+
+    # --- LAN: UDP discovery, then a status probe for identity ---------------
+    lan_found = discover_peer_endpoints(discovery_port, timeout)
+
+    def _probe(item):
+        ip, adv_port, adv_name = item
+        entry = {"ip": ip, "port": adv_port, "name": adv_name,
+                 "node_id": f"lan:{ip}:{adv_port}", "version": "unknown",
+                 "last_seen": None}
+        try:
+            r = requests.post(f"{scheme}://{ip}:{adv_port}",
+                              json={"action": "status"}, timeout=1.0,
+                              verify=verify_tls)
+            if r.status_code == 200:
+                data = r.json()
+                entry["node_id"] = str(data.get("node_id") or entry["node_id"])
+                entry["name"] = data.get("name", adv_name)
+                entry["version"] = data.get("version", "unknown")
+                entry["last_seen"] = time.time()
+        except Exception:
+            pass
+        return entry
+
+    with ThreadPoolExecutor(max_workers=20) as ex:
+        probed = list(ex.map(_probe, lan_found))
+    for p in probed:
+        e = _entry(p["node_id"])
+        e["name"] = p["name"] if e["name"] == "unknown" else e["name"]
+        e["version"] = p["version"]
+        e["lan_endpoint"] = {"ip": p["ip"], "port": p["port"]}
+        if p["last_seen"]:
+            e["last_seen"] = p["last_seen"]
+        if "lan" not in e["sources"]:
+            e["sources"].append("lan")
+
+    # --- global: discovery server registry ----------------------------------
+    try:
+        from core.global_p2p import get_global_peers
+        global_peers = get_global_peers()
+    except Exception:
+        global_peers = []
+    for gp in global_peers:
+        if not isinstance(gp, dict):
+            continue
+        node_id = str(gp.get("node_id") or "").strip()
+        if not node_id:
+            continue
+        host, gport = _parse_endpoint(gp.get("endpoint"), default_port=port)
+        e = _entry(node_id)
+        e["name"] = gp.get("name") or e["name"]
+        if gp.get("version"):
+            e["version"] = gp["version"]
+        e["global_endpoint"] = {"host": host, "port": gport}
+        if gp.get("last_seen"):
+            e["last_seen"] = gp["last_seen"]
+        if "global" not in e["sources"]:
+            e["sources"].append("global")
+
+    return sorted(merged.values(), key=lambda e: e["node_id"])
 
 def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verify_tls=False):
     """POST a command to a peer.
