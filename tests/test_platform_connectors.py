@@ -28,10 +28,12 @@ def isolated(tmp_path, monkeypatch):
     return store
 
 
-def test_registry_lists_four_connectors(isolated):
+def test_registry_lists_all_connectors(isolated):
     from core import connectors
     ids = sorted(c.id for c in connectors.list_connectors())
-    assert ids == ["gcal", "gdrive", "gmail", "outlook"]
+    assert ids == ["azure", "gcal", "gcontacts", "gdocs", "gdrive", "gmail",
+                   "gtasks", "onedrive", "onenote", "outlook", "teams",
+                   "youtube"]
     with pytest.raises(KeyError):
         connectors.get_connector("nope")
 
