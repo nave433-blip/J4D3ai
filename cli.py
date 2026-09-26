@@ -1678,7 +1678,7 @@ def memories_cmd(action: str = typer.Argument("show", help="show|add|forget|expo
 @app.command()
 def connector(action: str = typer.Argument("list", help="list|status|connect|disconnect"),
               conn_id: Optional[str] = typer.Argument(None, help="Connector id")):
-    """Manage app connectors (Drive, Gmail, Outlook, Calendar)."""
+    """Manage app connectors (Google + Microsoft services)."""
     from core import connectors as _cx
     if action == "list":
         for c in _cx.list_connectors():

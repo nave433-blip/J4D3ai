@@ -7,7 +7,15 @@ from core.connectors.base import Connector
 from core.connectors.google_drive import GoogleDriveConnector
 from core.connectors.gmail import GmailConnector
 from core.connectors.google_calendar import GoogleCalendarConnector
+from core.connectors.google_tasks import GoogleTasksConnector
+from core.connectors.google_contacts import GoogleContactsConnector
+from core.connectors.google_docs import GoogleDocsConnector
+from core.connectors.youtube import YouTubeConnector
 from core.connectors.outlook import OutlookConnector
+from core.connectors.onedrive import OneDriveConnector
+from core.connectors.teams import TeamsConnector
+from core.connectors.onenote import OneNoteConnector
+from core.connectors.azure_mgmt import AzureConnector
 
 _REGISTRY: Dict[str, Connector] = {}
 
@@ -17,7 +25,10 @@ def _register(conn: Connector) -> None:
 
 
 for _cls in (GoogleDriveConnector, GmailConnector, GoogleCalendarConnector,
-             OutlookConnector):
+             GoogleTasksConnector, GoogleContactsConnector,
+             GoogleDocsConnector, YouTubeConnector,
+             OutlookConnector, OneDriveConnector, TeamsConnector,
+             OneNoteConnector, AzureConnector):
     _register(_cls())
 
 
