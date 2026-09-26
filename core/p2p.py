@@ -774,6 +774,28 @@ def p2p_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
         if "lan" not in e["sources"]:
             e["sources"].append("lan")
 
+    # --- mDNS (optional; skipped silently when zeroconf is absent) --------
+    try:
+        from core.p2p_optional import mdns_discover
+        mdns_hits = mdns_discover(timeout=min(timeout, 2.0)) or []
+    except Exception:
+        mdns_hits = []
+    for hit in mdns_hits:
+        if not isinstance(hit, dict):
+            continue
+        node_id = str(hit.get("node_id") or "").strip()
+        if not node_id:
+            node_id = f"mdns:{hit.get('host')}:{hit.get('port')}"
+        e = _entry(node_id)
+        if hit.get("name"):
+            e["name"] = hit["name"] if e["name"] == "unknown" else e["name"]
+        if hit.get("version"):
+            e["version"] = hit["version"]
+        e["lan_endpoint"] = e["lan_endpoint"] or {"ip": hit.get("host"),
+                                                 "port": hit.get("port")}
+        if "mdns" not in e["sources"]:
+            e["sources"].append("mdns")
+
     # --- global: discovery server registry ----------------------------------
     try:
         from core.global_p2p import get_global_peers
