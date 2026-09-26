@@ -51,9 +51,9 @@ class GoogleContactsConnector(GoogleConnector):
                 _summarize(r.get("person", {}))
                 for r in res.get("results", [])]}
 
-        def _create(name: str, email: str = "", phone: str = ""):
+        def _create(display_name: str, email: str = "", phone: str = ""):
             payload: Dict[str, Any] = {
-                "names": [{"givenName": name}],
+                "names": [{"givenName": display_name}],
                 "emailAddresses": ([{"value": email}] if email else []),
                 "phoneNumbers": ([{"value": phone}] if phone else []),
             }
@@ -68,6 +68,6 @@ class GoogleContactsConnector(GoogleConnector):
                               "run": _list},
             "search_contacts": {"description": "Search your contacts (query).",
                                 "run": _search},
-            "create_contact": {"description": "Create a contact (name, [email], [phone]).",
+            "create_contact": {"description": "Create a contact (display_name, [email], [phone]).",
                                "run": _create},
         }
