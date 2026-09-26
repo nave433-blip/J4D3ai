@@ -2,6 +2,8 @@ import http.server
 import socketserver
 import json
 import os
+import base64
+import hashlib
 import hmac
 import ipaddress
 import shutil
@@ -10,6 +12,7 @@ import subprocess
 import threading
 import time
 import socket
+import uuid
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from rich.console import Console
@@ -66,7 +69,8 @@ P2P_FEATURES = {
     "0.1.7": ["status", "edit_file", "read_file"],
     "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk",
               "hive_cache_get", "hive_cache_put", "capabilities",
-              "skill_offer", "session_handoff"]
+              "skill_offer", "session_handoff",
+              "file_send", "file_fetch", "message", "p2p_sync_memory"]
 }
 
 def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
@@ -123,6 +127,31 @@ def check_permission(peer_ip, action):
 
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
+
+
+# ---------------------------------------------------------------------------
+# Binary file transfer state.
+#
+# file_send uploads arrive as numbered chunks; the server holds them in
+# memory keyed by transfer_id until the last chunk arrives, then verifies
+# the sha256 of the reassembled bytes and atomically renames a temp file
+# into the confined destination. Abandoned transfers are pruned.
+# ---------------------------------------------------------------------------
+P2P_MAX_CHUNK = 1_000_000      # 1 MB per chunk
+P2P_MAX_FILE = 64_000_000      # 64 MB per transfer
+P2P_TRANSFER_TTL = 600         # drop incomplete transfers after 10 minutes
+
+_file_transfers = {}  # transfer_id -> {"path", "total_chunks", "chunks", "sha256", "started", "peer"}
+_file_transfer_lock = threading.Lock()
+
+
+def _prune_transfers():
+    now = time.time()
+    with _file_transfer_lock:
+        stale = [tid for tid, t in _file_transfers.items()
+                 if now - t["started"] > P2P_TRANSFER_TTL]
+        for tid in stale:
+            del _file_transfers[tid]
 
 class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
@@ -264,6 +293,129 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(res.encode())
             except Exception as e:
                 self.send_response(500); self.end_headers(); self.wfile.write(str(e).encode())
+
+        elif action == "file_send":
+            # Binary upload, one chunk per request:
+            # {transfer_id, path, chunk_index, total_chunks, sha256, data_b64}
+            # Permission-gated and LAN-only like edit_file (enforced above).
+            _prune_transfers()
+            tid = str(data.get("transfer_id") or "")
+            file_path = data.get("path")
+            try:
+                chunk_index = int(data.get("chunk_index", -1))
+                total_chunks = int(data.get("total_chunks", 0))
+            except (TypeError, ValueError):
+                chunk_index, total_chunks = -1, 0
+            expect_sha = str(data.get("sha256") or "")
+            full_path = _is_path_confined(file_path) if file_path else None
+            if not tid or full_path is None:
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Forbidden: bad transfer id or path outside the CORTANA workspace"); return
+            if total_chunks < 1 or total_chunks > (P2P_MAX_FILE // 1024 + 1) \
+                    or not (0 <= chunk_index < total_chunks):
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Bad chunk_index/total_chunks"); return
+            try:
+                chunk = base64.b64decode(data.get("data_b64") or b"", validate=True)
+            except Exception:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Invalid base64 chunk"); return
+            if len(chunk) > P2P_MAX_CHUNK:
+                self.send_response(413); self.end_headers()
+                self.wfile.write(b"Chunk too large"); return
+            with _file_transfer_lock:
+                t = _file_transfers.get(tid)
+                if t is None:
+                    t = {"path": full_path, "total_chunks": total_chunks,
+                         "chunks": {}, "sha256": expect_sha,
+                         "started": time.time(), "peer": peer_ip}
+                    _file_transfers[tid] = t
+                if str(t["path"]) != str(full_path) or t["total_chunks"] != total_chunks:
+                    self.send_response(409); self.end_headers()
+                    self.wfile.write(b"Transfer id reused with different path/size"); return
+                t["chunks"][chunk_index] = chunk
+                received = len(t["chunks"])
+                complete = received == total_chunks
+                if complete:
+                    blob = b"".join(t["chunks"][i] for i in range(total_chunks))
+                    del _file_transfers[tid]
+            if complete:
+                if len(blob) > P2P_MAX_FILE:
+                    self.send_response(413); self.end_headers()
+                    self.wfile.write(b"File too large"); return
+                if expect_sha and hashlib.sha256(blob).hexdigest() != expect_sha.lower():
+                    self.send_response(422); self.end_headers()
+                    self.wfile.write(b"SHA256 mismatch: transfer discarded"); return
+                try:
+                    full_path.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = full_path.with_name(full_path.name + f".p2p-{tid[:8]}.tmp")
+                    with open(tmp, "wb") as f:
+                        f.write(blob)
+                    os.replace(tmp, full_path)  # atomic rename
+                except Exception as e:
+                    self.send_response(500); self.end_headers()
+                    self.wfile.write(str(e).encode()); return
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "received": received,
+                                         "total_chunks": total_chunks,
+                                         "complete": complete}).encode())
+
+        elif action == "file_fetch":
+            # Binary download, range read: {path, offset, length} ->
+            # {data_b64, offset, total_size, sha256}. Permission-gated and
+            # LAN-only like read_file (enforced above).
+            file_path = data.get("path")
+            full_path = _is_path_confined(file_path) if file_path else None
+            if full_path is None:
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Forbidden: path outside the CORTANA workspace"); return
+            try:
+                offset = max(0, int(data.get("offset", 0)))
+                length = int(data.get("length", P2P_MAX_CHUNK))
+                length = max(1, min(length, P2P_MAX_CHUNK))
+            except (TypeError, ValueError):
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Bad offset/length"); return
+            try:
+                if not full_path.is_file():
+                    self.send_response(404); self.end_headers()
+                    self.wfile.write(b"File not found"); return
+                total = full_path.stat().st_size
+                if total > P2P_MAX_FILE:
+                    self.send_response(413); self.end_headers()
+                    self.wfile.write(b"File too large"); return
+                with open(full_path, "rb") as f:
+                    f.seek(offset)
+                    chunk = f.read(length)
+                digest = hashlib.sha256(full_path.read_bytes()).hexdigest()
+            except Exception as e:
+                self.send_response(500); self.end_headers()
+                self.wfile.write(str(e).encode()); return
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({
+                "data_b64": base64.b64encode(chunk).decode(),
+                "offset": offset, "length": len(chunk),
+                "total_size": total, "sha256": digest}).encode())
+
+        elif action == "message":
+            # Direct peer message -> local inbox. Permission-gated (above):
+            # a peer needs your approval before it can drop messages here.
+            text = str(data.get("text") or "").strip()
+            if not text:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Empty message"); return
+            if len(text) > P2P_MESSAGE_MAX:
+                self.send_response(413); self.end_headers()
+                self.wfile.write(b"Message too long"); return
+            entry = {
+                "from_node_id": str(data.get("from_node_id") or "unknown"),
+                "from_ip": peer_ip,
+                "timestamp": time.time(),
+                "text": text,
+            }
+            _inbox_store(entry)
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "stored": True}).encode())
 
         elif action == "think":
             from core.resource_manager import resource_manager
@@ -550,6 +702,168 @@ def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verif
             return {"ok": True, "stream": r.iter_content(chunk_size=None)} if stream else {"ok": True, "data": r.text}
         return {"ok": False, "error": f"Error {r.status_code}: {r.text}"}
     except Exception as e: return {"ok": False, "error": str(e)}
+
+def p2p_send_file(peer_ip, local_path, remote_path, port=11435, use_tls=None,
+                 verify_tls=False, chunk_size=P2P_MAX_CHUNK):
+    """Upload a local file to a peer in numbered chunks.
+
+    Returns {"ok": True, "bytes": N, "sha256": hex} on success. The peer
+    verifies the sha256 of the reassembled file before atomically moving it
+    into place, so a short or corrupted transfer can never leave a partial
+    file at the destination.
+    """
+    local = Path(os.path.expanduser(local_path))
+    if not local.is_file():
+        return {"ok": False, "error": f"Local file not found: {local_path}"}
+    blob = local.read_bytes()
+    if len(blob) > P2P_MAX_FILE:
+        return {"ok": False, "error": f"File exceeds {P2P_MAX_FILE} byte P2P limit"}
+    digest = hashlib.sha256(blob).hexdigest()
+    tid = uuid.uuid4().hex
+    chunk_size = max(1024, min(int(chunk_size), P2P_MAX_CHUNK))
+    chunks = [blob[i:i + chunk_size] for i in range(0, len(blob), chunk_size)] or [b""]
+    for idx, chunk in enumerate(chunks):
+        res = send_remote_command(peer_ip, "file_send", {
+            "transfer_id": tid, "path": remote_path,
+            "chunk_index": idx, "total_chunks": len(chunks),
+            "sha256": digest,
+            "data_b64": base64.b64encode(chunk).decode(),
+        }, port=port, use_tls=use_tls, verify_tls=verify_tls)
+        if not res["ok"]:
+            return {"ok": False, "error": f"chunk {idx}: {res['error']}"}
+        try:
+            ack = json.loads(res["data"])
+        except Exception:
+            return {"ok": False, "error": f"chunk {idx}: bad ack"}
+        if not ack.get("ok"):
+            return {"ok": False, "error": f"chunk {idx}: rejected by peer"}
+    if not ack.get("complete"):
+        return {"ok": False, "error": "peer never acknowledged completion"}
+    return {"ok": True, "bytes": len(blob), "sha256": digest}
+
+
+def p2p_fetch_file(peer_ip, remote_path, local_path, port=11435, use_tls=None,
+                  verify_tls=False, chunk_size=P2P_MAX_CHUNK):
+    """Download a file from a peer with range reads, verifying sha256.
+
+    Writes to a temp file and atomically renames into place, so a failed or
+    tampered download never leaves a partial file behind.
+    """
+    local = Path(os.path.expanduser(local_path))
+    chunk_size = max(1024, min(int(chunk_size), P2P_MAX_CHUNK))
+    tmp = local.with_name(local.name + ".p2p-dl.tmp")
+    offset, total, expect_sha = 0, None, None
+    try:
+        with open(tmp, "wb") as f:
+            while True:
+                res = send_remote_command(peer_ip, "file_fetch", {
+                    "path": remote_path, "offset": offset, "length": chunk_size,
+                }, port=port, use_tls=use_tls, verify_tls=verify_tls)
+                if not res["ok"]:
+                    raise RuntimeError(res["error"])
+                try:
+                    msg = json.loads(res["data"])
+                except Exception:
+                    raise RuntimeError("bad chunk response")
+                if total is None:
+                    total = int(msg["total_size"])
+                    expect_sha = str(msg["sha256"])
+                    if total > P2P_MAX_FILE:
+                        raise RuntimeError("remote file exceeds P2P size limit")
+                f.write(base64.b64decode(msg["data_b64"]))
+                offset += int(msg["length"])
+                if offset >= total or not msg["length"]:
+                    break
+        blob = tmp.read_bytes()
+        if hashlib.sha256(blob).hexdigest() != (expect_sha or "").lower():
+            raise RuntimeError("SHA256 mismatch: download discarded")
+        local.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(tmp, local)
+    except Exception as e:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "bytes": len(blob), "sha256": expect_sha}
+
+# ---------------------------------------------------------------------------
+# Peer direct messaging. Inbox lives at ~/.cortana/p2p_inbox.json, capped at
+# 500 entries (newest kept). Path is resolved at call time so tests can
+# isolate it by monkeypatching core.config.CONFIG_DIR.
+# ---------------------------------------------------------------------------
+P2P_INBOX_CAP = 500
+P2P_MESSAGE_MAX = 10_000  # max characters per message
+
+
+def _inbox_file():
+    from core.config import CONFIG_DIR
+    return CONFIG_DIR / "p2p_inbox.json"
+
+
+def _inbox_read():
+    path = _inbox_file()
+    try:
+        data = json.loads(path.read_text())
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _inbox_store(entry):
+    path = _inbox_file()
+    entries = _inbox_read()
+    entries.append(entry)
+    entries = entries[-P2P_INBOX_CAP:]
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(entries, indent=2))
+        tmp.replace(path)
+    except Exception:
+        pass
+    return entry
+
+
+def p2p_inbox(limit=50):
+    """Read the local P2P message inbox (newest first)."""
+    entries = _inbox_read()
+    entries.sort(key=lambda e: e.get("timestamp", 0), reverse=True)
+    return entries[:max(1, int(limit))]
+
+
+def p2p_inbox_clear():
+    """Empty the local P2P message inbox. Returns the number cleared."""
+    entries = _inbox_read()
+    try:
+        _inbox_file().write_text("[]")
+    except Exception:
+        pass
+    return len(entries)
+
+
+def p2p_send_message(peer_ip, text, port=11435, use_tls=None, verify_tls=False):
+    """Send a direct text message to a peer's inbox."""
+    text = (text or "").strip()
+    if not text:
+        return {"ok": False, "error": "empty message"}
+    if len(text) > P2P_MESSAGE_MAX:
+        return {"ok": False, "error": f"message exceeds {P2P_MESSAGE_MAX} chars"}
+    try:
+        from tools.hardware import get_node_id
+        node_id = get_node_id()
+    except Exception:
+        node_id = "unknown"
+    res = send_remote_command(peer_ip, "message",
+                             {"text": text, "from_node_id": node_id},
+                             port=port, use_tls=use_tls, verify_tls=verify_tls)
+    if not res["ok"]:
+        return res
+    try:
+        return {"ok": True, "data": json.loads(res["data"])}
+    except Exception:
+        return {"ok": True, "data": res["data"]}
+
 
 def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
     from rich.table import Table
