@@ -256,7 +256,9 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
             self.wfile.write(json.dumps(list_available_keys()).encode()); return
 
-        if not check_permission(peer_ip, action):
+        # p2p_sync_memory carries its own permission name ("sync_memory") and
+        # its own config opt-in; both are enforced inside its branch below.
+        if action != "p2p_sync_memory" and not check_permission(peer_ip, action):
             self.send_response(403); self.end_headers()
             self.wfile.write(b"Permission denied"); return
 
@@ -423,6 +425,59 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             _inbox_store(entry)
             self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
             self.wfile.write(json.dumps({"ok": True, "stored": True}).encode())
+
+        elif action == "p2p_sync_memory":
+            # Opt-in memory-core sync between your own devices.
+            #
+            # TRUST ASSUMPTION (read this before enabling): a peer that
+            # passes both gates below can PULL (read) and PUSH (write) your
+            # memory cores. Only enable with nodes you fully trust —
+            # typically your own machines.
+            #
+            # Gate 1 (both sides): "p2p_memory_sync": true in config.
+            # Gate 2 (this side):  the "sync_memory" permission for the
+            #   peer's IP — default deny (the prompt defaults to refusing).
+            from core import memory_cores as mc_mod
+            if not cfg.get("p2p_memory_sync"):
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Memory sync is not enabled on this node "
+                                 b"(set 'p2p_memory_sync': true to opt in)."); return
+            if not check_permission(peer_ip, "sync_memory"):
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Permission denied (sync_memory)"); return
+            mode = str(data.get("mode") or "")
+            core = str(data.get("core") or "")
+            if core not in mc_mod.CORES:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Unknown memory core"); return
+            if mode == "push":
+                entries = data.get("entries") or []
+                if not isinstance(entries, list) or len(entries) > 200:
+                    self.send_response(400); self.end_headers()
+                    self.wfile.write(b"entries must be a list of at most 200"); return
+                stored = 0
+                for e in entries:
+                    text = (e.get("text") if isinstance(e, dict) else "") or ""
+                    if text.strip():
+                        r = mc_mod.remember(core, text[:4000],
+                                           source=f"p2p:{peer_ip}",
+                                           scope="p2p-sync")
+                        if r.get("ok"):
+                            stored += 1
+                self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "stored": stored}).encode())
+            elif mode == "pull":
+                try:
+                    limit = max(1, min(int(data.get("limit", 50)), 200))
+                except (TypeError, ValueError):
+                    limit = 50
+                entries = mc_mod.recall(core, limit=limit)
+                self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "core": core,
+                                             "entries": entries}).encode())
+            else:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"mode must be 'push' or 'pull'"); return
 
         elif action == "think":
             from core.resource_manager import resource_manager
@@ -981,6 +1036,80 @@ def p2p_inbox_clear():
     except Exception:
         pass
     return len(entries)
+
+
+# ---------------------------------------------------------------------------
+# Opt-in memory sync between your own devices.
+#
+# TRUST ASSUMPTION: both nodes must set "p2p_memory_sync": true, and the
+# receiving node must grant the "sync_memory" permission to the peer's IP.
+# A peer with that permission can read AND write your memory cores — only
+# ever grant it to machines you fully trust (normally your own).
+# ---------------------------------------------------------------------------
+
+def _memory_sync_opted_in():
+    from core.config import load_config
+    return bool(load_config().get("p2p_memory_sync"))
+
+
+def p2p_push_memory(peer_ip, core, query="", limit=50, port=11435,
+                    use_tls=None, verify_tls=False):
+    """Push matching entries from a local memory core to a peer.
+
+    Both sides must have "p2p_memory_sync": true, and the peer must grant
+    this IP the "sync_memory" permission.
+    """
+    if not _memory_sync_opted_in():
+        return {"ok": False, "error": "local opt-in missing: set "
+                "'p2p_memory_sync': true in ~/.cortana/config.json"}
+    from core import memory_cores as mc_mod
+    if core not in mc_mod.CORES:
+        return {"ok": False, "error": f"unknown memory core '{core}'"}
+    entries = mc_mod.recall(core, query=query, limit=max(1, min(limit, 200)))
+    texts = [{"text": e.get("text", "")} for e in entries if e.get("text")]
+    res = send_remote_command(peer_ip, "p2p_sync_memory",
+                             {"mode": "push", "core": core, "entries": texts},
+                             port=port, use_tls=use_tls, verify_tls=verify_tls)
+    if not res["ok"]:
+        return res
+    try:
+        return {"ok": True, "data": json.loads(res["data"])}
+    except Exception:
+        return {"ok": True, "data": res["data"]}
+
+
+def p2p_pull_memory(peer_ip, core, limit=50, port=11435,
+                    use_tls=None, verify_tls=False):
+    """Pull a peer's memory-core entries into the local core of the same name.
+
+    Pulled entries are stored locally with source "p2p:<peer_ip>". Same
+    double opt-in as :func:`p2p_push_memory`.
+    """
+    if not _memory_sync_opted_in():
+        return {"ok": False, "error": "local opt-in missing: set "
+                "'p2p_memory_sync': true in ~/.cortana/config.json"}
+    from core import memory_cores as mc_mod
+    if core not in mc_mod.CORES:
+        return {"ok": False, "error": f"unknown memory core '{core}'"}
+    res = send_remote_command(peer_ip, "p2p_sync_memory",
+                             {"mode": "pull", "core": core, "limit": limit},
+                             port=port, use_tls=use_tls, verify_tls=verify_tls)
+    if not res["ok"]:
+        return res
+    try:
+        payload = json.loads(res["data"])
+    except Exception:
+        return {"ok": False, "error": "bad pull response"}
+    stored = 0
+    for e in payload.get("entries") or []:
+        text = (e.get("text") if isinstance(e, dict) else "") or ""
+        if text.strip():
+            r = mc_mod.remember(core, text[:4000],
+                               source=f"p2p:{peer_ip}", scope="p2p-sync")
+            if r.get("ok"):
+                stored += 1
+    return {"ok": True, "pulled": len(payload.get("entries") or []),
+            "stored": stored}
 
 
 def p2p_send_message(peer_ip, text, port=11435, use_tls=None, verify_tls=False):

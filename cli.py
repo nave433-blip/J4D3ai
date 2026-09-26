@@ -991,6 +991,31 @@ def p2p_peers_cmd():
                       ",".join(p["sources"]), ep, ls_s)
     console.print(table)
 
+@app.command(name="p2p-sync-memory")
+def p2p_sync_memory_cmd(peer_ip: str = typer.Argument(..., help="Peer IP address"),
+                        core: str = typer.Argument(..., help="Memory core: facts, preferences, projects, episodic"),
+                        direction: str = typer.Argument(..., help="'push' (send mine) or 'pull' (fetch theirs)"),
+                        port: int = typer.Option(11435, "--port", help="Peer P2P port")):
+    """Sync a memory core with one of your own devices over P2P.
+
+    Both nodes need "p2p_memory_sync": true in config, and the receiving
+    node must grant the sender the "sync_memory" permission. A peer with
+    that permission can read AND write your memory cores — only use this
+    between machines you fully trust.
+    """
+    from core.p2p import p2p_push_memory, p2p_pull_memory
+    if direction == "push":
+        res = p2p_push_memory(peer_ip, core, port=port)
+    elif direction == "pull":
+        res = p2p_pull_memory(peer_ip, core, port=port)
+    else:
+        console.print("[red]direction must be 'push' or 'pull'[/red]")
+        return
+    if res["ok"]:
+        console.print(f"[green]✅ Memory sync {direction} complete: {res}[/green]")
+    else:
+        console.print(f"[red]❌ {res.get('error', res)}[/red]")
+
 @app.command()
 def restart():
     console.print("[yellow]🔄 Restarting CORTANA...[/yellow]")
