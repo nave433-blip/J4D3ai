@@ -894,6 +894,16 @@ def p2p_tokens():
     p2p_token_menu()
 
 @app.command()
+def p2p_discovery(port: int = typer.Option(11437, "--port", help="TCP port to listen on"),
+                  ttl: int = typer.Option(90, "--ttl", help="Peer registration TTL in seconds"),
+                  secret: str = typer.Option("", "--secret", help="Optional shared secret required of registering nodes"),
+                  persist: str = typer.Option("", "--persist", help="Optional JSON file to persist the peer registry")):
+    """Run the self-hosted P2P discovery (rendezvous) server for global P2P."""
+    from core.p2p_discovery_server import run_discovery_server
+    run_discovery_server(port=port, ttl=ttl, secret=secret or None,
+                         persist_path=persist or None)
+
+@app.command()
 def restart():
     console.print("[yellow]🔄 Restarting CORTANA...[/yellow]")
     os.execv(sys.executable, ['python3'] + sys.argv)
