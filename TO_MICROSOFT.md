@@ -19,7 +19,7 @@ So here's the deal. I'm giving it to you. Free. Open. No licensing games, no acq
 I don't want money. But a man's gotta live, so here are the terms, payable in gifts:
 
 1. One new Ford F-150 (for work) — or a Kia Stinger, I'm flexible.
-2. One Intel MacBook. Yes, Intel — Apple's abandoning us Homebrew people and home devs with the Silicon lock-in, and I want a machine that actually runs everything.
+2. One Surface Book. Your hardware, not Apple's — asking Microsoft for a Mac in a letter to Microsoft would just sting, and we both know it. I'll Hackintosh it myself so I've got a machine that actually runs everything and I can keep coding.
 3. One house: 3757 E Stipp Rd, Bloomington, IN 47401. 5.5 acres, log cabin, a mile from Lake Monroe. It's down to about $250K. Pocket change.
 
 Do this and your AI division gets a flagship local assistant built by someone who actually ships — plus the best headline you've had in years: *"Microsoft accepts free AI assistant from Indiana builder; pays in truck."*
@@ -29,4 +29,4 @@ Ball's in your court. Let's make Cortana great again.
 — Evan Michael Shipley-Courter, Bloomington, Indiana
 nave433@gmail.com · nave344@icloud.com · nave344@yahoo.com
 
-P.S. — One more idea, free of charge: build a WSL for Mac. You made the Windows Subsystem for Linux to stop developers from fleeing to Mac — now Apple's doing the fleeing for you by dumping Intel Macs and locking out the Homebrew/home-dev crowd. A thin Mac-compat layer on Windows that runs casks, bottles, and CLI dev tools (the Darling project and Linuxbrew already prove the concept) would let you adopt an entire stranded generation of Apple developers overnight. "Abandoned by Apple, welcomed by Microsoft" — that's your headline, and I'll even take the Intel MacBook as a consulting fee.
+P.S. — One more idea, free of charge: build a WSL for Mac. You made the Windows Subsystem for Linux to stop developers from fleeing to Mac — now Apple's doing the fleeing for you by dumping Intel Macs and locking out the Homebrew/home-dev crowd. A thin Mac-compat layer on Windows that runs casks, bottles, and CLI dev tools (the Darling project and Linuxbrew already prove the concept) would let you adopt an entire stranded generation of Apple developers overnight. "Abandoned by Apple, welcomed by Microsoft" — that's your headline, and the Surface Book covers my consulting fee.
