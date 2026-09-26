@@ -123,7 +123,8 @@ def _confirm_overwrite_token():
 
 
 def join_pairing(code, port=11435, timeout=2.0, discovery_port=11436,
-                 use_tls=None, verify_tls=False, assume_yes=False):
+                 use_tls=None, verify_tls=False, assume_yes=False,
+                 target='<broadcast>'):
     """Join using a pairing code. Returns a result dict.
 
     On the LAN: discovers peers via UDP broadcast, matches the pairing
@@ -142,7 +143,7 @@ def join_pairing(code, port=11435, timeout=2.0, discovery_port=11436,
     want_node = str(payload["node_id"])
     peers = p2p_mod.p2p_peers(port=port, timeout=timeout, use_tls=use_tls,
                              verify_tls=verify_tls,
-                             discovery_port=discovery_port)
+                             discovery_port=discovery_port, target=target)
     match = next((p for p in peers if p["node_id"] == want_node
                   and "lan" in p["sources"]), None)
     if match is None:
