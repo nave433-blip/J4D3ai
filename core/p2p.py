@@ -659,7 +659,11 @@ def discover_peer_endpoints(discovery_port=11436, timeout=1.5, target='<broadcas
     """
     found = []
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    if target == '<broadcast>':
+        # Broadcast capability is only needed for actual broadcasts; a
+        # unicast probe (e.g. target="127.0.0.1" in tests) must not require
+        # it — some sandboxes forbid SO_BROADCAST sockets entirely.
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.settimeout(timeout)
     try:
         sock.sendto(b"JARVIS_DISCOVERY_REQUEST", (target, discovery_port))
@@ -762,7 +766,7 @@ def _parse_endpoint(endpoint, default_port=11435):
 
 
 def p2p_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
-              discovery_port=11436):
+              discovery_port=11436, target='<broadcast>'):
     """Merged presence list: LAN peers (UDP discovery) + global peers
     (discovery server), deduplicated by node_id.
 
@@ -796,7 +800,7 @@ def p2p_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
         })
 
     # --- LAN: UDP discovery, then a status probe for identity ---------------
-    lan_found = discover_peer_endpoints(discovery_port, timeout)
+    lan_found = discover_peer_endpoints(discovery_port, timeout, target=target)
 
     def _probe(item):
         ip, adv_port, adv_name = item
