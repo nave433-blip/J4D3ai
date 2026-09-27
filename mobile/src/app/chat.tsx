@@ -1,5 +1,5 @@
 /** Main chat screen: drawer + thread + composer, Grok/Gemini-style. */
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
@@ -12,10 +12,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ChatMsg, CortanaClient } from '../src/api/client';
-import { Composer } from '../src/components/Composer';
-import { ConversationDrawer } from '../src/components/ConversationDrawer';
-import { MessageBubble } from '../src/components/MessageBubble';
+import { ChatMsg, CortanaClient, ServerError } from '../api/client';
+import { Composer } from '../components/Composer';
+import { ConversationDrawer } from '../components/ConversationDrawer';
+import { MessageBubble } from '../components/MessageBubble';
 import {
   Conversation,
   getModelOverride,
@@ -25,10 +25,10 @@ import {
   saveConversations,
   StoredMessage,
   titleFor,
-} from '../src/store/conversations';
-import { useSession } from '../src/store/sessionContext';
-import { theme } from '../src/theme';
-import { speak, stopSpeaking } from '../src/voice';
+} from '../store/conversations';
+import { useSession } from '../store/sessionContext';
+import { theme } from '../theme';
+import { speak, stopSpeaking } from '../voice';
 
 const SUGGESTIONS = [
   'Explain quantum computing simply',
@@ -52,6 +52,8 @@ export default function ChatScreen() {
   const [ttsOn, setTtsOn] = useState(false);
   const listRef = useRef<FlatList>(null);
   const cancelRef = useRef(false);
+  /** Cancels the in-flight network request for real (stream abort / fetch abort). */
+  const abortRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -72,10 +74,15 @@ export default function ChatScreen() {
   );
 
   useEffect(() => {
+    // Intentional reset: when the user opens a different conversation, the
+    // visible thread is replaced wholesale. (Not derived state.)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMessages(
       (active?.messages ?? []).map((m) => ({ ...m })),
     );
     cancelRef.current = true; // stop any in-flight stream when switching chats
+    abortRef.current?.();
+    abortRef.current = null;
     setBusy(false);
   }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -85,6 +92,8 @@ export default function ChatScreen() {
 
   const newChat = useCallback(() => {
     cancelRef.current = true;
+    abortRef.current?.();
+    abortRef.current = null;
     stopSpeaking();
     setBusy(false);
     setActiveId(null);
@@ -129,21 +138,84 @@ export default function ChatScreen() {
         convTitle = titleFor(text);
       }
 
-      try {
-        await (client as CortanaClient).streamChat({
-          messages: apiMessages,
-          model: modelOverride || undefined,
-          onToken: (tok) => {
-            if (cancelRef.current) return;
-            assistantMsg.content += tok;
+      /** One plain-JSON retry when streaming yielded nothing usable. */
+      const chatOnceFallback = async () => {
+        const ctrl = new AbortController();
+        abortRef.current = () => ctrl.abort();
+        const fallbackTimer = setTimeout(() => ctrl.abort(), 120000);
+        try {
+          const full = await (client as CortanaClient).chatOnce(
+            apiMessages,
+            modelOverride || undefined,
+            ctrl.signal,
+          );
+          if (!cancelRef.current) {
+            assistantMsg.content = full;
             setMessages((prev) =>
-              prev.map((m) => (m === assistantMsg ? { ...m, content: assistantMsg.content } : m)),
+              prev.map((m) => (m === assistantMsg ? { ...m, content: full } : m)),
             );
-          },
-        });
+          }
+        } finally {
+          clearTimeout(fallbackTimer);
+          abortRef.current = null;
+        }
+      };
+
+      // Stream when supported…
+      const stream = (client as CortanaClient).streamChat({
+        messages: apiMessages,
+        model: modelOverride || undefined,
+        onToken: (tok) => {
+          if (cancelRef.current) return;
+          assistantMsg.content += tok;
+          setMessages((prev) =>
+            prev.map((m) => (m === assistantMsg ? { ...m, content: assistantMsg.content } : m)),
+          );
+        },
+      });
+      abortRef.current = () => stream.abort();
+      let streamError: unknown = null;
+      try {
+        await stream.promise;
+      } catch (e) {
+        streamError = e;
+      } finally {
+        abortRef.current = null;
+      }
+
+      // …otherwise fall back to a single plain-JSON completion. This covers
+      // transports that can't do SSE and servers that answer 200 without any
+      // usable delta. It never masks real HTTP errors (4xx/5xx) and never
+      // fires after the user stopped the request.
+      const showStreamError = () => {
+        const msg = streamError instanceof Error ? streamError.message : 'Something went wrong.';
+        assistantMsg.content = assistantMsg.content || `⚠️ ${msg}`;
+        setMessages((prev) =>
+          prev.map((m) => (m === assistantMsg ? { ...m, content: assistantMsg.content } : m)),
+        );
+      };
+      try {
+        if (!cancelRef.current && assistantMsg.content === '' && streamError === null) {
+          await chatOnceFallback();
+        } else if (
+          !cancelRef.current &&
+          assistantMsg.content === '' &&
+          streamError instanceof ServerError &&
+          streamError.status === 0
+        ) {
+          // Transport died before any token arrived — one plain-JSON retry.
+          await chatOnceFallback();
+        } else if (!cancelRef.current && streamError) {
+          showStreamError();
+        }
       } catch (e) {
         if (!cancelRef.current) {
-          const msg = e instanceof Error ? e.message : 'Something went wrong.';
+          const msg =
+            e instanceof Error && e.name === 'AbortError'
+              ? 'Chat request timed out.'
+              : e instanceof Error
+                ? e.message
+                : 'Something went wrong.';
           assistantMsg.content = assistantMsg.content || `⚠️ ${msg}`;
           setMessages((prev) =>
             prev.map((m) => (m === assistantMsg ? { ...m, content: assistantMsg.content } : m)),
@@ -176,14 +248,15 @@ export default function ChatScreen() {
 
   const stop = useCallback(() => {
     cancelRef.current = true;
+    abortRef.current?.(); // actually cancel the in-flight request
+    abortRef.current = null;
     stopSpeaking();
     setBusy(false);
     setMessages((prev) => prev.map((m) => ({ ...m, streaming: false })));
   }, []);
 
   if (!session.token) {
-    router.replace('/auth');
-    return null;
+    return <Redirect href="/auth" />;
   }
 
   const modelLabel = modelOverride || 'server default';
@@ -220,7 +293,7 @@ export default function ChatScreen() {
 
         {messages.length === 0 ? (
           <View style={styles.empty}>
-            <Image source={require('../assets/icon.png')} style={styles.emptyLogo} />
+            <Image source={require('../../assets/icon.png')} style={styles.emptyLogo} />
             <Text style={styles.emptyTitle}>How can I help?</Text>
             <Text style={styles.emptySub}>
               Replies come from your Cortana server —{'\n'}this app is just the window.

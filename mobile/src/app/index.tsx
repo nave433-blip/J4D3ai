@@ -1,8 +1,8 @@
 /** Boot gate: decide auth vs chat once the stored session is validated. */
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { useSession } from '../src/store/sessionContext';
-import { theme } from '../src/theme';
+import { useSession } from '../store/sessionContext';
+import { theme } from '../theme';
 
 export default function Index() {
   const { ready, session } = useSession();

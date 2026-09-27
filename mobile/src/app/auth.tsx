@@ -13,8 +13,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useSession } from '../src/store/sessionContext';
-import { theme } from '../src/theme';
+import { useSession } from '../store/sessionContext';
+import { theme } from '../theme';
 
 export default function AuthScreen() {
   const { session, signIn, signUp } = useSession();
@@ -49,7 +49,7 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Image source={require('../assets/icon.png')} style={styles.logo} />
+        <Image source={require('../../assets/icon.png')} style={styles.logo} />
         <Text style={styles.title}>Cortana</Text>
         <Text style={styles.subtitle}>
           Your assistant, running on{'\n'}your own server — not in this app.

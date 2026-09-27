@@ -12,15 +12,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ConnectorInfo } from '../src/api/client';
+import { ConnectorInfo } from '../api/client';
 import {
   getModelOverride,
   getTtsEnabled,
   setModelOverride,
   setTtsEnabled,
-} from '../src/store/conversations';
-import { useSession } from '../src/store/sessionContext';
-import { theme } from '../src/theme';
+} from '../store/conversations';
+import { useSession } from '../store/sessionContext';
+import { theme } from '../theme';
 
 export default function SettingsScreen() {
   const { session, client, signOut } = useSession();
@@ -110,13 +110,13 @@ export default function SettingsScreen() {
         <View style={styles.switchRow}>
           <View style={styles.switchText}>
             <Text style={styles.rowValue}>Read replies aloud</Text>
-            <Text style={styles.note}>Uses your phone's text-to-speech.</Text>
+            <Text style={styles.note}>Uses the phone’s text-to-speech.</Text>
           </View>
           <Switch value={tts} onValueChange={toggleTts} trackColor={{ true: theme.accent }} />
         </View>
         <Text style={styles.note}>
           Voice input (microphone button) works in the full EAS build via on-device speech
-          recognition. In Expo Go it is hidden — use your keyboard's dictation key instead.
+          recognition. In Expo Go it is hidden — use the keyboard’s dictation key instead.
         </Text>
       </View>
 
@@ -141,7 +141,7 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.note}>
           Cortana Mobile 1.0.0 — a thin client for your own Cortana server. It stores no
-          API keys and runs no AI on this phone; every reply comes from your server's
+          API keys and runs no AI on this phone; every reply comes from the server’s
           /v1/chat/completions endpoint. Chats are stored only on this device.
         </Text>
       </View>
