@@ -16,6 +16,8 @@ Copilot is a good idea wearing a Microsoft suit. Cortana is what Copilot should'
 
 So here's the deal. I'm giving it to you. Free. Open. No licensing games, no acquisition circus.
 
+And here's the positioning, because it matters: keep Copilot for the enterprise — the boardroom, the compliance checklists, the $30 seats. It can't be personal or weird or fun without breaking its brand. Cortana becomes your consumer app: the one people actually love. Local-first, in their pocket, theirs — an app like Muse, but with everything Copilot can't be.
+
 I don't want money. But a man's gotta live, so here are the terms, payable in gifts:
 
 1. One new Ford F-150 (for work) — or a Kia Stinger, I'm flexible.
