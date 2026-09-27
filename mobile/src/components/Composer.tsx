@@ -57,7 +57,9 @@ export function Composer({ onSend, busy, onStop }: Props) {
     try {
       setListening(true);
       stopRef.current = await startListening({
-        onResult: (chunk) => setText((prev) => (prev ? `${prev} ${chunk}` : chunk)),
+        // Interim results are the recognizer's current best guess of the
+        // whole utterance — replace the input text, don't append.
+        onResult: (chunk) => setText(chunk),
         onDone: () => setListening(false),
         onError: (message) => {
           setListening(false);

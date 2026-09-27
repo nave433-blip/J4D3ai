@@ -1,181 +1,207 @@
 /**
- * Voice: HONEST implementation only.
+ * Voice: real on-device speech recognition (expo-speech-recognition) for
+ * input, expo-speech for read-aloud.
  *
- * - Speech OUTPUT (read-aloud) uses expo-speech — real, on-device, works
- *   everywhere including Expo Go.
- * - Speech INPUT uses @react-native-voice/voice (real on-device speech
- *   recognition). That package ships native code, so it is ONLY present in
- *   EAS/dev builds — never in Expo Go. The mic button is rendered only when
- *   the native module is actually available; otherwise voice input is left
- *   to the OS keyboard's dictation key, and the docs say so.
+ * The recognition native module is loaded LAZILY — never statically
+ * imported. It is absent in Expo Go (and any build without the native
+ * module), so every entry point here degrades gracefully: no module means
+ * no microphone button, and keyboard dictation still works.
  */
-import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import * as Speech from 'expo-speech';
 
-// ---------------------------------------------------------------------------
-// lazy native voice module (never imported statically — Expo Go would crash)
-// ---------------------------------------------------------------------------
+type NativeListener = { remove(): void };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare function require(name: string): any;
+/** Minimal surface of expo-speech-recognition's native module. */
+type SpeechRecognitionModule = {
+  requestPermissionsAsync(): Promise<{ granted: boolean }>;
+  isRecognitionAvailable(): boolean;
+  start(options: {
+    lang?: string;
+    interimResults?: boolean;
+    addsPunctuation?: boolean;
+    continuous?: boolean;
+  }): void;
+  stop(): void;
+  addListener(event: 'result' | 'error' | 'end' | 'nomatch', cb: (e: any) => void): NativeListener;
+};
 
-let cached: unknown = undefined;
+let cachedMod: SpeechRecognitionModule | null | undefined;
 
-function getVoiceModule(): unknown {
-  if (cached !== undefined) return cached;
+function getModule(): SpeechRecognitionModule | null {
+  if (cachedMod !== undefined) return cachedMod;
   try {
+    // Deliberate lazy require: the native module may not exist (Expo Go), so
+    // it must never be statically imported. The throw is the availability signal.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('@react-native-voice/voice');
-    cached = mod?.default ?? mod ?? null;
+    const pkg = require('expo-speech-recognition');
+    const mod = pkg?.ExpoSpeechRecognitionModule;
+    cachedMod = mod && typeof mod.start === 'function' ? (mod as SpeechRecognitionModule) : null;
   } catch {
-    cached = null; // native module not linked (e.g. Expo Go)
+    cachedMod = null;
   }
-  return cached;
+  return cachedMod;
 }
 
+export function voiceUnavailableAlert(): void {
+  Alert.alert(
+    'Voice input unavailable',
+    'This build does not include the native speech module. Use your keyboard’s dictation key instead.',
+  );
+}
+
+/** True only when the native recognizer exists AND the device can recognize. */
 export async function isVoiceInputAvailable(): Promise<boolean> {
-  const V = getVoiceModule() as {
-    isAvailable?: () => Promise<number>;
-  } | null;
-  if (!V) return false;
+  const mod = getModule();
+  if (!mod) return false;
   try {
-    if (typeof V.isAvailable === 'function') {
-      const r = await V.isAvailable();
-      return r === 1 || (r as unknown) === true;
-    }
-    return true;
+    return mod.isRecognitionAvailable() === true;
   } catch {
     return false;
   }
 }
 
-async function ensureMicPermission(): Promise<boolean> {
-  if (Platform.OS === 'android') {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-        {
-          title: 'Microphone access',
-          message: 'Cortana needs the microphone to transcribe your voice.',
-          buttonPositive: 'OK',
-        },
-      );
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    } catch {
-      return false;
-    }
-  }
-  // iOS prompts automatically on first use (InfoPlist usage descriptions).
-  return true;
-}
-
 export interface VoiceCallbacks {
+  /**
+   * The recognizer's current best guess of the FULL utterance — interim
+   * results first, then the final transcript. Replace the input text with
+   * it; do not append.
+   */
   onResult: (text: string) => void;
+  /** The recognition session ended (final result, error, or silence). */
   onDone: () => void;
   onError: (message: string) => void;
 }
 
-/** Start one-shot speech recognition. Returns a stop() function. */
-export async function startListening(cb: VoiceCallbacks): Promise<() => Promise<void>> {
-  const V = getVoiceModule() as {
-    start: (locale: string) => Promise<void>;
-    stop: () => Promise<void>;
-    destroy: () => Promise<void>;
-    removeAllListeners: () => void;
-    onSpeechResults?: unknown;
-    onSpeechEnd?: unknown;
-    onSpeechError?: unknown;
-  };
-  if (!V) throw new Error('Voice input is not available in this build.');
+function friendlyVoiceError(code: unknown): string {
+  switch (code) {
+    case 'not-allowed':
+      return 'Microphone or speech-recognition permission was denied.';
+    case 'no-speech':
+    case 'speech-timeout':
+      return 'No speech was detected. Try again.';
+    case 'network':
+      return 'A network problem stopped speech recognition.';
+    case 'language-not-supported':
+      return 'This language is not supported by the on-device recognizer.';
+    case 'service-not-allowed':
+      return 'Speech recognition is not available on this device.';
+    default:
+      return typeof code === 'string' && code
+        ? `Speech recognition failed (${code}).`
+        : 'Speech recognition failed.';
+  }
+}
 
-  const ok = await ensureMicPermission();
-  if (!ok) {
-    cb.onError('Microphone permission was denied.');
-    return async () => {};
+/**
+ * Ask for permission, then start listening. Resolves to a stop function, or
+ * null when voice input is unavailable (an alert is shown in that case).
+ * Calling the stop function requests a final result, which still arrives
+ * through onResult.
+ */
+export async function startListening(cb: VoiceCallbacks): Promise<(() => Promise<void>) | null> {
+  const mod = getModule();
+  if (!mod) {
+    voiceUnavailableAlert();
+    return null;
   }
 
-  V.removeAllListeners();
-  V.onSpeechResults = (e: { value?: string[] }) => {
-    const text = e?.value?.[0] ?? '';
-    if (text) cb.onResult(text);
-  };
+  let granted = false;
+  try {
+    granted = (await mod.requestPermissionsAsync())?.granted === true;
+  } catch {
+    granted = false;
+  }
+  if (!granted) {
+    Alert.alert(
+      'Microphone needed',
+      'Allow microphone and speech-recognition access to dictate messages.',
+    );
+    return null;
+  }
+
+  const subs: NativeListener[] = [];
+  let finished = false;
+  let stopTimer: ReturnType<typeof setTimeout> | null = null;
   const finish = () => {
-    try {
-      V.removeAllListeners();
-    } catch {
-      /* ignore */
+    if (finished) return;
+    finished = true;
+    if (stopTimer) {
+      clearTimeout(stopTimer);
+      stopTimer = null;
     }
+    for (const s of subs) {
+      try {
+        s.remove();
+      } catch {
+        /* noop */
+      }
+    }
+  };
+  const handleDone = () => {
+    if (finished) return;
+    finish();
     cb.onDone();
   };
-  V.onSpeechEnd = finish;
-  V.onSpeechError = (e: { error?: { message?: string } }) => {
-    cb.onError(e?.error?.message || 'Speech recognition failed.');
-    finish();
-  };
 
-  try {
-    await V.destroy().catch(() => {});
-    await V.start('en-US');
-  } catch (err) {
-    finish();
-    throw err instanceof Error ? err : new Error('Could not start speech recognition.');
-  }
-
-  let stopped = false;
-  return async () => {
-    if (stopped) return;
-    stopped = true;
-    try {
-      await V.stop();
-    } catch {
-      /* ignore */
-    }
-    try {
-      await V.destroy();
-    } catch {
-      /* ignore */
-    }
-  };
-}
-
-export function voiceUnavailableAlert(): void {
-  Alert.alert(
-    'Voice input needs the full build',
-    'Speech recognition uses native code, so it only works in the EAS production/development build — not in Expo Go. ' +
-      'In the meantime, use your keyboard\u2019s dictation (microphone) key to talk instead of typing.',
+  subs.push(
+    mod.addListener('result', (event: any) => {
+      const text = event?.results?.[0]?.transcript;
+      if (typeof text === 'string' && text.length > 0) cb.onResult(text);
+    }),
   );
-}
+  subs.push(
+    mod.addListener('error', (event: any) => {
+      const code = event?.code;
+      if (code !== 'aborted') cb.onError(friendlyVoiceError(code));
+      handleDone();
+    }),
+  );
+  // 'end' fires after stop(); 'nomatch' when nothing recognizable was heard.
+  subs.push(mod.addListener('end', handleDone));
+  subs.push(mod.addListener('nomatch', handleDone));
 
-// ---------------------------------------------------------------------------
-// speech output (expo-speech — real, everywhere)
-// ---------------------------------------------------------------------------
-
-/** Strip markdown noise so read-aloud sounds natural. */
-export function stripMarkdown(md: string): string {
-  return md
-    .replace(/```[\s\S]*?```/g, ' code block omitted ')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/[*_~]{1,3}/g, '')
-    .trim();
-}
-
-export function speak(text: string): void {
   try {
-    Speech.stop();
-    const clean = stripMarkdown(text);
-    if (clean) Speech.speak(clean);
+    mod.start({ lang: 'en-US', interimResults: true, addsPunctuation: true, continuous: false });
   } catch {
-    /* TTS unavailable — stay silent rather than crash */
+    finish();
+    cb.onError('Could not start speech recognition on this device.');
+    cb.onDone();
+    return null;
+  }
+
+  return async () => {
+    try {
+      mod.stop(); // asks the recognizer for a final result via onResult
+    } catch {
+      /* noop */
+    }
+    // Safety net: if the native 'end' event never arrives, end locally.
+    stopTimer = setTimeout(handleDone, 2000);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Read-aloud (text to speech) — expo-speech, works everywhere incl. Expo Go.
+// ---------------------------------------------------------------------------
+
+export async function speak(text: string): Promise<void> {
+  try {
+    const speaking = await Speech.isSpeakingAsync();
+    if (speaking) {
+      await Speech.stop();
+      return;
+    }
+    await Speech.speak(text, { rate: 1.0 });
+  } catch {
+    /* TTS unavailable — stay silent */
   }
 }
 
-export function stopSpeaking(): void {
+export async function stopSpeaking(): Promise<void> {
   try {
-    Speech.stop();
+    await Speech.stop();
   } catch {
-    /* ignore */
+    /* noop */
   }
 }

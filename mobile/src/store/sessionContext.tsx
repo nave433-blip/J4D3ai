@@ -1,6 +1,6 @@
 /** App-wide auth session: secure-stored server URL + bearer token + user. */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { CortanaClient, CortanaUser } from '../api/client';
+import { CortanaClient } from '../api/client';
 import { clearSession, loadSession, saveSession, Session } from './session';
 
 interface SessionCtx {
