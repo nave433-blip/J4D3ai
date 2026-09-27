@@ -141,11 +141,13 @@ export class CortanaClient {
 
   /**
    * Non-streaming chat completion. Returns the assistant's full reply text.
+   * Accepts an AbortSignal so the UI stop button can cancel it for real.
    */
-  async chatOnce(messages: ChatMsg[], model?: string): Promise<string> {
+  async chatOnce(messages: ChatMsg[], model?: string, signal?: AbortSignal): Promise<string> {
     const res = await fetch(`${this.url}/v1/chat/completions`, {
       method: 'POST',
       headers: this.headers(),
+      signal,
       body: JSON.stringify({
         model: model || undefined,
         messages,
@@ -163,16 +165,27 @@ export class CortanaClient {
    * Streaming chat via XMLHttpRequest progressive reads (React Native's
    * fetch does not expose a streaming body). Parses the server's SSE
    * `data:` chunks — OpenAI delta format — until `data: [DONE]`.
+   *
+   * Returns a { promise, abort } pair: abort() cancels the in-flight
+   * request for real (the UI stop button uses it).
+   *
+   * If the server answers 200 but the body is a complete JSON completion
+   * instead of SSE (some proxies buffer event streams), the JSON is parsed
+   * and delivered through onToken so the stream still yields text.
    */
   streamChat(opts: {
     messages: ChatMsg[];
     model?: string;
     onToken: (text: string) => void;
     timeoutMs?: number;
-  }): Promise<void> {
+  }): { promise: Promise<void>; abort: () => void } {
     const { messages, model, onToken, timeoutMs = 120000 } = opts;
-    return new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
+    let xhr: XMLHttpRequest | null = null;
+    let userAborted = false;
+
+    const promise = new Promise<void>((resolve, reject) => {
+      xhr = new XMLHttpRequest();
+      const req: XMLHttpRequest = xhr;
       let settled = false;
       const done = (fn: () => void) => {
         if (!settled) {
@@ -181,27 +194,29 @@ export class CortanaClient {
         }
       };
 
-      let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
         try {
-          xhr.abort();
+          req.abort();
         } catch {
           /* ignore */
         }
         done(() => reject(new ServerError('Chat request timed out.', 0)));
       }, timeoutMs);
 
-      const clearTimer = () => {
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-        }
-      };
+      const clearTimer = () => clearTimeout(timer);
 
       let seen = 0;
       let buffer = '';
+      let gotToken = false;
+      const emit = (text: string) => {
+        if (text.length > 0) {
+          gotToken = true;
+          onToken(text);
+        }
+      };
       const handleProgress = () => {
         try {
-          const text: string = (xhr as unknown as { responseText: string }).responseText || '';
+          const text: string = (req as unknown as { responseText: string }).responseText || '';
           const chunk = text.slice(seen);
           seen = text.length;
           buffer += chunk;
@@ -215,7 +230,7 @@ export class CortanaClient {
             try {
               const json = JSON.parse(data);
               const content = json?.choices?.[0]?.delta?.content;
-              if (typeof content === 'string' && content.length > 0) onToken(content);
+              if (typeof content === 'string') emit(content);
             } catch {
               /* partial JSON at a chunk boundary — next progress event completes it */
             }
@@ -225,36 +240,57 @@ export class CortanaClient {
         }
       };
 
-      xhr.open('POST', `${this.url}/v1/chat/completions`);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      if (this.token) xhr.setRequestHeader('Authorization', `Bearer ${this.token}`);
-      xhr.onprogress = handleProgress;
-      xhr.onload = () => {
+      req.open('POST', `${this.url}/v1/chat/completions`);
+      req.setRequestHeader('Content-Type', 'application/json');
+      if (this.token) req.setRequestHeader('Authorization', `Bearer ${this.token}`);
+      req.onprogress = handleProgress;
+      req.onload = () => {
         clearTimer();
         handleProgress(); // flush any trailing buffered lines
-        if (xhr.status >= 200 && xhr.status < 300) {
+        if (req.status >= 200 && req.status < 300) {
+          if (!gotToken) {
+            // Not SSE after all? Try a whole-body JSON completion (buffered proxy).
+            try {
+              const body = JSON.parse(
+                (req as unknown as { responseText: string }).responseText || 'null',
+              );
+              const content = body?.choices?.[0]?.message?.content;
+              if (typeof content === 'string') emit(content);
+            } catch {
+              /* leave it tokenless — the caller decides the fallback */
+            }
+          }
           done(() => resolve());
         } else {
           let msg = '';
           try {
-            const body = JSON.parse((xhr as unknown as { responseText: string }).responseText || '{}');
+            const body = JSON.parse(
+              (req as unknown as { responseText: string }).responseText || '{}',
+            );
             if (typeof body.error === 'string') msg = body.error;
           } catch {
             /* ignore */
           }
-          const friendly = friendlyError(xhr.status, msg);
-          done(() => reject(new ServerError(friendly, xhr.status)));
+          const friendly = friendlyError(req.status, msg);
+          done(() => reject(new ServerError(friendly, req.status)));
         }
       };
-      xhr.onerror = () => {
+      req.onerror = () => {
         clearTimer();
         done(() => reject(new ServerError(friendlyError(0, ''), 0)));
       };
-      xhr.onabort = () => {
+      req.onabort = () => {
         clearTimer();
-        done(() => reject(new ServerError('Chat request was cancelled.', 0)));
+        done(() =>
+          reject(
+            new ServerError(
+              userAborted ? 'Chat request was cancelled.' : 'Chat request was aborted.',
+              0,
+            ),
+          ),
+        );
       };
-      xhr.send(
+      req.send(
         JSON.stringify({
           model: model || undefined,
           messages,
@@ -262,5 +298,17 @@ export class CortanaClient {
         }),
       );
     });
+
+    return {
+      promise,
+      abort() {
+        userAborted = true;
+        try {
+          xhr?.abort();
+        } catch {
+          /* ignore */
+        }
+      },
+    };
   }
 }
