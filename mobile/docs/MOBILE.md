@@ -87,25 +87,24 @@ You need:
    one-time) is only needed if you publish to the Play Store; for sideloading
    an APK you just need the file.
 
-Install and log in:
+Install and log in (use `npx eas-cli@latest` — never a bare `eas`):
 
 ```bash
-npm install -g eas-cli
 cd mobile
-eas login
+npx eas-cli@latest login
 ```
 
 Builds:
 
 ```bash
 # Android APK you can install directly (sideload) — easiest first build
-eas build --profile preview --platform android
+npx eas-cli@latest build --profile preview --platform android
 
 # Android App Bundle for the Play Store
-eas build --profile production --platform android
+npx eas-cli@latest build --profile production --platform android
 
 # iOS — needs the Apple Developer membership above
-eas build --profile production --platform ios
+npx eas-cli@latest build --profile production --platform ios
 ```
 
 When a build finishes, EAS gives you a download link (and QR code) for the
@@ -115,37 +114,38 @@ on the phone.
 Submit to stores (optional):
 
 ```bash
-eas submit --platform android   # needs Play Console service-account key
-eas submit --platform ios       # needs App Store Connect API key
+npx eas-cli@latest submit --platform android   # needs Play Console service-account key
+npx eas-cli@latest submit --platform ios       # needs App Store Connect API key
 ```
 
 **What this Linux VM cannot do:** produce a *signed* iOS IPA. IPA signing
 requires Xcode/macOS (or EAS cloud build with your Apple Developer account).
 This project is build-ready — the native config, bundle IDs
 (`com.nave433.cortana`), permissions, and icons are all in place — but the
-actual signed binaries must come from `eas build`.
+actual signed binaries must come from `npx eas-cli@latest build`.
 
 ## 4. Project layout
 
 ```
 mobile/
-  app.json            Expo config (name, slug, bundle IDs, icons, splash,
-                      permissions, plugins)
+  app.json            Expo config (name, slug, bundle IDs, icons, permissions,
+                      plugins: expo-router, expo-secure-store,
+                      expo-splash-screen, expo-speech-recognition)
   eas.json            EAS build profiles (development / preview APK /
                       production AAB+IPA)
   package.json        main: expo-router/entry
-  app/
-    _layout.tsx       Stack navigator + session provider
-    index.tsx         boot gate (validates stored token → /chat or /auth)
-    auth.tsx          server URL + login/signup
-    chat.tsx          Grok/Gemini-style chat: drawer, thread, composer
-    settings.tsx      server, account, connectors, TTS, model override, about
   src/
+    app/
+      _layout.tsx     Stack navigator + session provider
+      index.tsx       boot gate (validates stored token → /chat or /auth)
+      auth.tsx        server URL + login/signup
+      chat.tsx        Grok/Gemini-style chat: drawer, thread, composer
+      settings.tsx    server, account, connectors, TTS, model override, about
     api/client.ts     Cortana server HTTP client (auth, connectors, chat;
-                      streaming via XHR-parsed SSE)
+                      streaming via XHR-parsed SSE, plain-JSON fallback)
     store/            secure session (keychain) + conversations (AsyncStorage)
-    components/      MessageBubble (markdown), Composer, ConversationDrawer
-    voice.ts          expo-speech TTS + lazy @react-native-voice/voice input
+    components/       MessageBubble (markdown), Composer, ConversationDrawer
+    voice.ts          expo-speech TTS + lazy expo-speech-recognition input
     theme.ts
   assets/             icon.png, adaptive-icon.png, splash.png, favicon.png
   assets-src/         1600px master artwork (source of the derived assets)
@@ -159,13 +159,14 @@ mobile/
 
 | Feature | Real? | Notes |
 |---|---|---|
-| Chat with streaming replies | ✅ real | SSE from your server's `/v1/chat/completions` |
+| Chat with streaming replies | ✅ real | SSE from your server's `/v1/chat/completions`; falls back to a single plain-JSON completion when streaming yields nothing usable |
 | Markdown rendering | ✅ real | code blocks, tables, lists |
 | Login / signup / logout | ✅ real | server's `/v1/accounts/*`, token in keychain |
 | Conversation history | ✅ real | device-only, 100-chat cap |
 | Connector status list | ✅ real | read-only; linking happens in a browser on the server |
 | Read replies aloud | ✅ real | `expo-speech`, on-device TTS, toggle in Settings |
-| Voice input (mic) | ✅ real, **EAS builds only** | on-device speech recognition via `@react-native-voice/voice`; hidden in Expo Go where the native module can't exist |
+| Voice input (mic) | ✅ real, **EAS builds only** | on-device speech recognition via the official `expo-speech-recognition` package; hidden in Expo Go where the native module can't exist |
+| Stop button | ✅ real | cancels the in-flight request (stream abort / fetch abort), not just a local flag |
 | Running Cortana locally on the phone | ❌ not real, not claimed | the app is a client; the server does the work |
 | Offline chat | ❌ | no server, no replies |
 
@@ -183,13 +184,20 @@ mobile/
 
 ## Known verification notes
 
-- `npx tsc --noEmit` is clean.
-- `npx expo-doctor`: if it reports anything, each item is triaged below
-  (this section is updated when the check is re-run):
-  - *(none outstanding at last check — see commit log)*
+- `npx tsc --noEmit` — clean (2026-09-27).
+- `npx expo lint` — clean (2026-09-27).
+- `npx expo-doctor` — 21/21 checks pass (2026-09-27).
 - Icons: `python3 scripts/check_icons.py` asserts all four assets at exact
   dimensions.
-- The `@react-native-voice/voice` Expo config plugin was verified by running
-  `npx expo prebuild --platform android` on a scratch copy (plugin applies,
-  `RECORD_AUDIO` permission lands in the manifest). iOS native generation
-  needs macOS and is left to EAS.
+- Native plugin validation: ran `npx expo prebuild --platform android` on a
+  scratch copy (deleted afterwards — `android/`/`ios/` are never committed).
+  The `expo-speech-recognition` plugin lands `RECORD_AUDIO` plus the speech
+  service `<queries>` in the manifest; the `expo-splash-screen` plugin
+  generates splash drawables at all densities. iOS native generation needs
+  macOS and is left to EAS (the plugin source sets the iOS plist strings).
+- Prebuild prints an informational note: `userInterfaceStyle: Install
+  expo-system-ui in your project to enable this feature.` The app hardcodes
+  its dark theme on every screen, so this is cosmetic-only and left out.
+- No signed APK/AAB/IPA was produced here: that requires
+  `npx eas-cli@latest build` with your Expo account (and Apple Developer
+  membership for iOS).
