@@ -126,6 +126,42 @@ def refresh_access_token(token_url: str, client_id: str, refresh_token: str,
         return {"error": f"Token refresh failed: {e}"}
 
 
+def api_request(method: str, url: str, access_token: str,
+                payload: Optional[Dict[str, Any]] = None,
+                params: Optional[Dict[str, str]] = None,
+                timeout: int = 30) -> Dict[str, Any]:
+    """General JSON REST call with a bearer token (GET/POST/PATCH/DELETE).
+
+    Returns parsed JSON, ``{"ok": True}`` for empty 2xx bodies, or
+    ``{"error": ...}``. Failures never raise.
+    """
+    if params:
+        url += ("&" if "?" in url else "?") + urllib.parse.urlencode(params)
+    data = json.dumps(payload).encode() if payload is not None else None
+    headers = {"Authorization": f"Bearer {access_token}"}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    try:
+        req = urllib.request.Request(url, data=data, headers=headers,
+                                     method=method.upper())
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            body = r.read().decode()
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode()[:500]
+        except Exception:
+            detail = str(e)
+        return {"error": f"HTTP {e.code}: {detail}"}
+    except Exception as e:
+        return {"error": str(e)}
+    if not body.strip():
+        return {"ok": True}
+    try:
+        return json.loads(body)
+    except Exception as e:
+        return {"error": f"Could not parse JSON response: {e}"}
+
+
 def api_get(url: str, access_token: str, params: Optional[Dict[str, str]] = None,
             timeout: int = 30, raw: bool = False) -> Dict[str, Any]:
     """GET a REST endpoint with a bearer token.
