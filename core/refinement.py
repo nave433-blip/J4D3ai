@@ -39,7 +39,10 @@ def refine_loop(target_file: str, test_cmd: str, max_retries=3):
             # the file was repaired.
             console.print("[yellow]Suggested repair (NOT applied automatically — review manually):[/yellow]")
             console.print(res.get('text', 'No fix text found'))
-            return False
+            # Keep looping: re-run the test on the next attempt so
+            # max_retries is honored instead of silently giving up after
+            # the first failed attempt.
+            continue
         else:
             console.print("[red]❌ Autonomous repair failed.[/red]")
             return False

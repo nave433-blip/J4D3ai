@@ -171,7 +171,23 @@ Assistant: {"type":"help","target":"","args":[],"confirm":false,"ui":{"title":"H
 
         return {"type": "noop", "target": "", "args": [], "confirm": False, "ui": None}
 
+    @staticmethod
+    def _join_args(args: Any) -> str:
+        """Coerce an LLM-returned args payload to a string. The model is
+        contractually supposed to return a list of strings, but under stress
+        it returns None, scalars, or mixed lists — never let that crash routing."""
+        if args is None:
+            return ""
+        if isinstance(args, str):
+            return args
+        try:
+            return " ".join(str(a) for a in args)
+        except TypeError:
+            return str(args)
+
     def handle(self, text: str) -> Dict[str, Any]:
+        if not isinstance(text, str):
+            return {"ok": False, "error": "invalid input: expected text"}
         text = text.strip()
         if not text: return {"ok": False, "error": "empty"}
 
@@ -184,9 +200,11 @@ Assistant: {"type":"help","target":"","args":[],"confirm":false,"ui":{"title":"H
         t = parsed.get("type")
         
         if t == "internal":
-            target = parsed.get("target")
+            target = parsed.get("target") or ""
+            if not isinstance(target, str):
+                target = str(target)
             cmd = target if target.startswith("/") else "/" + target
-            return {"ok": True, "type": "internal", "command": cmd, "args": " ".join(parsed.get("args", [])), "ui": parsed.get("ui")}
+            return {"ok": True, "type": "internal", "command": cmd, "args": self._join_args(parsed.get("args")), "ui": parsed.get("ui")}
         elif t == "shell":
             return {"ok": True, "type": "shell", "command": parsed.get("target"), "confirm": parsed.get("confirm", True), "ui": parsed.get("ui")}
         elif t == "help":

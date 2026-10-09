@@ -150,6 +150,10 @@ def load_config():
             raw = {}
     except Exception:
         raw = {}
+    if not isinstance(raw, dict):
+        # Valid JSON, wrong shape (e.g. a list or string) — fall back to
+        # defaults instead of crashing the merge below.
+        raw = {}
     merged = {**DEFAULT_CONFIG, **raw}
     # Migrate pre-rename keys so existing configs keep working. (Check the
     # raw user file, not the merged dict — defaults already contain the new
