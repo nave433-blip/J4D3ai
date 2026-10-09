@@ -91,14 +91,14 @@ def test_get_env_with_config_precedence(monkeypatch, isolated_config_file):
     from core.config import get_env_with_config
     isolated_config_file.write_text(json.dumps({"jade_model": "cfg-model"}))
     monkeypatch.delenv("JADE_MODEL", raising=False)
-    monkeypatch.delenv("CORTANA_MODEL", raising=False)
+    monkeypatch.delenv("JADE_MODEL", raising=False)
     monkeypatch.delenv("JARVIS_MODEL", raising=False)
     assert get_env_with_config("jade_model") == "cfg-model"
     monkeypatch.setenv("JARVIS_MODEL", "ancient-env")
     assert get_env_with_config("jade_model") == "ancient-env"
-    monkeypatch.setenv("CORTANA_MODEL", "legacy-env")
+    monkeypatch.setenv("JADE_MODEL", "legacy-env")
     assert get_env_with_config("jade_model") == "legacy-env"
     monkeypatch.setenv("JADE_MODEL", "new-env")
     assert get_env_with_config("jade_model") == "new-env"
-    monkeypatch.setenv("CORTANA_MODEL", "new-env")
-    assert get_env_with_config("cortana_model") == "new-env"
+    monkeypatch.setenv("JADE_MODEL", "new-env")
+    assert get_env_with_config("jade_model") == "new-env"

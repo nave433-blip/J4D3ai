@@ -1,11 +1,11 @@
 """Sign in with Microsoft / Apple / Google / GitHub.
 
 Standard OAuth2/PKCE flows that open the system browser; tokens land in the
-OS keyring under ``cortana_signin_<provider>`` — never in plaintext, never
+OS keyring under ``jade_signin_<provider>`` — never in plaintext, never
 over P2P.
 
 Honesty contract: every provider needs *its own* registered OAuth client.
-Cortana ships no baked-in client secrets. :func:`signin_status` tells you
+Jade ships no baked-in client secrets. :func:`signin_status` tells you
 exactly what is missing and where to get it. GitHub uses the device flow
 (no secret needed, just a client id).
 """
@@ -25,7 +25,7 @@ from rich.console import Console
 from rich.prompt import Prompt
 
 console = Console()
-KEYRING_PREFIX = "cortana_signin_"
+KEYRING_PREFIX = "jade_signin_"
 
 PROVIDERS: Dict[str, Dict[str, Any]] = {
     "microsoft": {
@@ -55,7 +55,7 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
         "token_url": "https://oauth2.googleapis.com/token",
         "scopes": ["openid", "https://www.googleapis.com/auth/userinfo.email"],
         "client_via": "google_client.json",
-        "setup_hint": "Uses ~/.cortana/google_client.json (same file as /google-login).",
+        "setup_hint": "Uses ~/.jade/google_client.json (same file as /google-login).",
     },
     "github": {
         "display": "GitHub",
@@ -218,9 +218,9 @@ def signin(provider: str) -> Dict[str, Any]:
         keyring.set_password(_service(provider), "token", json.dumps(tok))
     except Exception as e:
         return {"ok": False, "error": f"Could not store token in keyring: {e}"}
-    # Link into the local Cortana Account record.
+    # Link into the local Jade Account record.
     try:
-        from core.cortana_account import link_signin
+        from core.jade_account import link_signin
         link_signin(provider, tok.get("account", ""))
     except Exception:
         pass
@@ -241,7 +241,7 @@ def signout(provider: str, _confirmed: bool = False) -> Dict[str, Any]:
     except Exception:
         pass
     try:
-        from core.cortana_account import unlink_signin
+        from core.jade_account import unlink_signin
         unlink_signin(provider)
     except Exception:
         pass

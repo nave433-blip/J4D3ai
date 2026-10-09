@@ -16,7 +16,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-os.environ.setdefault("CORTANA_SKIP_STARTUP", "1")
+os.environ.setdefault("JADE_SKIP_STARTUP", "1")
 
 import keyring
 from keyring.backends import fail
@@ -44,8 +44,8 @@ def home(tmp_path, monkeypatch):
     # pathlib.Path.home() is resolved at call time; redirect it for the test.
     monkeypatch.setattr("pathlib.Path.home", classmethod(lambda cls: tmp_path))
     # core.config captured CONFIG_DIR/CONFIG_FILE at import time; re-point them.
-    monkeypatch.setattr(cfg_mod, "CONFIG_DIR", tmp_path / ".cortana")
-    monkeypatch.setattr(cfg_mod, "CONFIG_FILE", tmp_path / ".cortana" / "config.json")
+    monkeypatch.setattr(cfg_mod, "CONFIG_DIR", tmp_path / ".jade")
+    monkeypatch.setattr(cfg_mod, "CONFIG_FILE", tmp_path / ".jade" / "config.json")
     # reset the once-per-process fallback warning so each test can observe it
     connect._fallback_warned = False
     yield tmp_path
@@ -86,7 +86,7 @@ def test_fallback_roundtrip_and_0600(home, fail_keyring, capsys):
     assert res["ok"] and res["stored_in"] == "fallback_file"
     assert connect.get_key_secure("openai") == "sk-fallback-secret"
 
-    path = home / ".cortana" / "keys.json"
+    path = home / ".jade" / "keys.json"
     assert path.exists()
     mode = stat.S_IMODE(os.stat(path).st_mode)
     assert mode == 0o600, f"fallback keys file must be 0600, got {oct(mode)}"

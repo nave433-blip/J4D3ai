@@ -23,7 +23,7 @@ from rich.table import Table
 console = Console()
 
 STORE_NAME = "briefs.json"
-DEFAULT_IGNORE = {".git", "__pycache__", ".venv", "node_modules", ".cortana"}
+DEFAULT_IGNORE = {".git", "__pycache__", ".venv", "node_modules", ".jade"}
 
 
 def _store_path() -> Path:
@@ -122,7 +122,7 @@ def ensure_watcher() -> None:
         return
     _watcher_stop.clear()
     _watcher_thread = threading.Thread(target=_watch_loop, args=(s["watch_paths"],),
-                                       daemon=True, name="cortana-briefs")
+                                       daemon=True, name="jade-briefs")
     _watcher_thread.start()
 
 

@@ -1,5 +1,5 @@
 """
-Stress / robustness tests for Cortana main branch.
+Stress / robustness tests for Jade main branch.
 
 Covers, without any network or LLM access (everything external is stubbed):
 - CommandHandler.handle with malformed and adversarial inputs

@@ -1,6 +1,6 @@
-# Cortana P2P — the complete guide
+# Jade P2P — the complete guide
 
-Cortana instances can talk to each other directly: run commands on a peer,
+Jade instances can talk to each other directly: run commands on a peer,
 move files, send messages, share memory between your own devices, and find
 each other on a LAN or across the internet. This document covers all of it,
 including what is **not** possible — stated plainly.
@@ -24,15 +24,15 @@ including what is **not** possible — stated plainly.
 On machine A (the one you want to reach):
 
 ```
-cortana p2p-server
+jade p2p-server
 ```
 
 On machine B:
 
 ```
-cortana p2p-peers        # who is around (LAN + global, deduped)
-cortana p2p-status       # live table of peers
-cortana p2p-read 192.168.1.20 notes/todo.txt
+jade p2p-peers        # who is around (LAN + global, deduped)
+jade p2p-status       # live table of peers
+jade p2p-read 192.168.1.20 notes/todo.txt
 ```
 
 The first time machine B asks machine A for anything beyond `status`,
@@ -43,7 +43,7 @@ Set a shared token on both machines so strangers on the LAN cannot call
 your node (constant-time compared; wrong token → HTTP 401):
 
 ```
-cortana p2p-set-token "a-long-random-secret"
+jade p2p-set-token "a-long-random-secret"
 ```
 
 ## 2. Pairing
@@ -55,7 +55,7 @@ cross NAT by itself.
 On the machine you want to connect **to**:
 
 ```
-cortana p2p-pair
+jade p2p-pair
 ```
 
 This prints a short code (token fingerprint + LAN endpoint). If the
@@ -66,7 +66,7 @@ and saves it.
 On the machine connecting **from**:
 
 ```
-cortana p2p-join <code>
+jade p2p-join <code>
 ```
 
 The joiner finds the peer with UDP broadcast discovery, matches it by
@@ -78,21 +78,21 @@ prints exactly what is needed:
 
 1. On the peer's network, port-forward **TCP 11435** to the peer machine.
 2. On the peer, set `"p2p_public_endpoint": "<peer-host>:11435"` in
-   `~/.cortana/config.json` (or use a discovery server, below).
-3. Re-run `cortana p2p-join <code>`.
+   `~/.jade/config.json` (or use a discovery server, below).
+3. Re-run `jade p2p-join <code>`.
 
 ## 3. Global mode (across the internet)
 
 Global P2P means peers find each other through a **discovery server**
-you run yourself. There is no hosted Cortana discovery service.
+you run yourself. There is no hosted Jade discovery service.
 
 1. Run the server somewhere reachable (a VPS, home server, Raspberry Pi):
 
    ```
-   cortana p2p-discovery --port 11437 --secret "another-long-secret" --persist ~/.cortana/discovery-peers.json
+   jade p2p-discovery --port 11437 --secret "another-long-secret" --persist ~/.jade/discovery-peers.json
    ```
 
-2. On each node, in `~/.cortana/config.json`:
+2. On each node, in `~/.jade/config.json`:
 
    ```json
    {
@@ -106,7 +106,7 @@ you run yourself. There is no hosted Cortana discovery service.
 3. Each node registers (heartbeats) every 45 seconds; the server drops
    nodes not heard from within the TTL (default 90s).
 
-4. `cortana p2p-peers` now lists global peers with source `global`;
+4. `jade p2p-peers` now lists global peers with source `global`;
    `p2p-status` includes them too.
 
 Direct connections still go peer-to-peer — the discovery server only
@@ -116,7 +116,7 @@ still authenticates every call.
 
 ## 4. The discovery server
 
-`core/p2p_discovery_server.py`, also via `cortana p2p-discovery`.
+`core/p2p_discovery_server.py`, also via `jade p2p-discovery`.
 
 | Endpoint | Method | Body / params | Auth |
 |---|---|---|---|
@@ -149,12 +149,12 @@ still authenticates every call.
   call `status` and `think`. Everything else (`read_file`, `edit_file`,
   `file_send`, `file_fetch`, `message`, `get_token`, `p2p_sync_memory`,
   …) is LAN-only (HTTP 403 from a WAN address).
-- **Per-peer permissions** (`~/.cortana/permissions.json`): the first
+- **Per-peer permissions** (`~/.jade/permissions.json`): the first
   mutating request from an IP prompts `Always / This once / Never /
   Not right now`. Stored decisions are honored silently afterwards.
 - **Workspace confinement**: `read_file`, `edit_file`, `file_send`,
   `file_fetch` resolve the requested path and refuse anything outside
-  the Cortana workspace root (HTTP 403).
+  the Jade workspace root (HTTP 403).
 - **Capability names only**: `status` advertises provider/model *names*.
   API keys are never advertised or transmitted by the protocol itself
   (`get_token`/`handoff` move keys only with explicit user approval,
@@ -209,11 +209,11 @@ Sync memory cores (`facts`, `preferences`, `projects`, `episodic`)
 between your own devices:
 
 ```
-# on BOTH machines, in ~/.cortana/config.json:
+# on BOTH machines, in ~/.jade/config.json:
 { "p2p_memory_sync": true }
 
-cortana p2p-sync-memory 192.168.1.20 facts push   # send my facts to the peer
-cortana p2p-sync-memory 192.168.1.20 facts pull   # fetch the peer's facts into mine
+jade p2p-sync-memory 192.168.1.20 facts push   # send my facts to the peer
+jade p2p-sync-memory 192.168.1.20 facts pull   # fetch the peer's facts into mine
 ```
 
 **Trust assumption — read before enabling:** a peer that passes both
@@ -237,7 +237,7 @@ compatibility list both sides check.
 | `edit_file` | `path, old_string, new_string` | `edit_file` | ❌ | workspace-confined |
 | `file_send` | `transfer_id, path, chunk_index, total_chunks, sha256, data_b64` | `file_send` | ❌ | binary, sha256-verified, atomic |
 | `file_fetch` | `path, offset, length` | `file_fetch` | ❌ | binary range read |
-| `message` | `text, from_node_id` | `message` | ❌ | → `~/.cortana/p2p_inbox.json` |
+| `message` | `text, from_node_id` | `message` | ❌ | → `~/.jade/p2p_inbox.json` |
 | `p2p_sync_memory` | `mode, core, entries?, limit?` | **`sync_memory`** (new, default deny) | ❌ | + `p2p_memory_sync` opt-in both sides |
 | `hive_cache_get/put` | `prompt_hash / entry` | none (own opt-in flag) | ❌ | `hive_cache_sharing` both sides |
 | `handoff` | `payload` | `handoff` | ❌ | explicit accept prompt |
@@ -249,20 +249,20 @@ compatibility list both sides check.
 
 | Command | What it does |
 |---|---|
-| `cortana p2p-server` | Start the P2P server (this machine accepts requests) |
-| `cortana p2p-scan` | List peer IPs on the LAN |
-| `cortana p2p-status` | Live table of peers (LAN + global) |
-| `cortana p2p-peers` | Merged presence: `lan` / `global` (`mdns`) sources, deduped by node id |
-| `cortana p2p-pair` | Print a pairing code (+ QR if `qrcode` installed) |
-| `cortana p2p-join <code>` | Join via pairing code (LAN; honest off-LAN instructions) |
-| `cortana p2p-set-token <t>` | Set the shared P2P token |
-| `cortana p2p-tokens` | Browse/request provider tokens from peers |
-| `cortana p2p-read <ip> <path>` | Read a text file from a peer |
-| `cortana p2p-edit <ip> <path> <old> <new>` | Edit a text file on a peer |
-| `cortana p2p-message <ip> <text> [--port]` | Send a message to a peer's inbox |
-| `cortana p2p-inbox [--limit N] [--clear]` | List / clear this node's inbox |
-| `cortana p2p-sync-memory <ip> <core> <push\|pull>` | Sync a memory core with your own device |
-| `cortana p2p-discovery [--port] [--ttl] [--secret] [--persist]` | Run the discovery server |
+| `jade p2p-server` | Start the P2P server (this machine accepts requests) |
+| `jade p2p-scan` | List peer IPs on the LAN |
+| `jade p2p-status` | Live table of peers (LAN + global) |
+| `jade p2p-peers` | Merged presence: `lan` / `global` (`mdns`) sources, deduped by node id |
+| `jade p2p-pair` | Print a pairing code (+ QR if `qrcode` installed) |
+| `jade p2p-join <code>` | Join via pairing code (LAN; honest off-LAN instructions) |
+| `jade p2p-set-token <t>` | Set the shared P2P token |
+| `jade p2p-tokens` | Browse/request provider tokens from peers |
+| `jade p2p-read <ip> <path>` | Read a text file from a peer |
+| `jade p2p-edit <ip> <path> <old> <new>` | Edit a text file on a peer |
+| `jade p2p-message <ip> <text> [--port]` | Send a message to a peer's inbox |
+| `jade p2p-inbox [--limit N] [--clear]` | List / clear this node's inbox |
+| `jade p2p-sync-memory <ip> <core> <push\|pull>` | Sync a memory core with your own device |
+| `jade p2p-discovery [--port] [--ttl] [--secret] [--persist]` | Run the discovery server |
 
 Python API (same names in `core.p2p`): `send_remote_command`,
 `p2p_send_file(peer_ip, local_path, remote_path)`,
@@ -274,7 +274,7 @@ Python API (same names in `core.p2p`): `send_remote_command`,
 
 - **Peer not found on LAN**: same subnet? UDP broadcasts do not cross
   routers/VLANs. Some guest Wi-Fi networks block client-to-client
-  traffic entirely — nothing Cortana-side can fix that.
+  traffic entirely — nothing Jade-side can fix that.
 - **401 Unauthorized**: `p2p_token` mismatch. Re-pair or re-run
   `p2p-set-token` with the same value on both nodes.
 - **403 from WAN**: by design — mutating actions are LAN-only.

@@ -152,7 +152,7 @@ def test_discovery_request_response_protocol(isolated_config, monkeypatch):
     assert addr == ("127.0.0.1", 55555)
     parts = payload.decode().split("|")
     assert parts[0] == "JARVIS_DISCOVERY_RESPONSE"
-    assert parts[1] == load_config().get("cortana_name", "Cortana")
+    assert parts[1] == load_config().get("jade_name", "Jade")
     assert parts[2] == "12135"  # advertised HTTP port, not discarded
 
 

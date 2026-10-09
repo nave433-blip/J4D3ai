@@ -1,6 +1,6 @@
 """Hive mind: multi-model consensus, P2P shared result cache, capability registry.
 
-Three pieces, all in Cortana's own style:
+Three pieces, all in Jade's own style:
 
 1. ``hive_ask(question)`` — asks every *configured* AI provider the same
    question in parallel and synthesizes one consensus answer with
@@ -196,7 +196,7 @@ def local_capabilities() -> Dict:
     providers = [p for p in AuthManager.PROVIDERS.keys() if is_configured(p)]
     cfg = load_config()
     models = [m for m in cfg.get("detected_local_models", []) if isinstance(m, str)]
-    model = cfg.get("cortana_model")
+    model = cfg.get("jade_model")
     if model and model not in models:
         models.append(model)
     return {
@@ -233,11 +233,11 @@ def cache_lookup_peers(question: str, use_tls=None,
     """Ask opted-in peers for cached answers. Returns fresh entries."""
     if not sharing_enabled():
         return []
-    from core.p2p import scan_for_cortana_peer_endpoints, send_remote_command
+    from core.p2p import scan_for_jade_peer_endpoints, send_remote_command
     h = prompt_hash(question)
     found: List[Dict] = []
     try:
-        peers = scan_for_cortana_peer_endpoints(use_tls=use_tls, verify_tls=verify_tls)
+        peers = scan_for_jade_peer_endpoints(use_tls=use_tls, verify_tls=verify_tls)
     except Exception:
         return []
     for ip, port in peers:
@@ -264,7 +264,7 @@ def cache_share_peers(question: str, model: str, answer: str,
     """Push a fresh answer to opted-in peers. Returns number of peers that stored it."""
     if not sharing_enabled():
         return 0
-    from core.p2p import scan_for_cortana_peer_endpoints, send_remote_command
+    from core.p2p import scan_for_jade_peer_endpoints, send_remote_command
     entry = {
         "prompt_hash": prompt_hash(question),
         "model": model,
@@ -273,7 +273,7 @@ def cache_share_peers(question: str, model: str, answer: str,
     }
     stored = 0
     try:
-        peers = scan_for_cortana_peer_endpoints(use_tls=use_tls, verify_tls=verify_tls)
+        peers = scan_for_jade_peer_endpoints(use_tls=use_tls, verify_tls=verify_tls)
     except Exception:
         return 0
     for ip, port in peers:
@@ -325,7 +325,7 @@ def resolve_hive_model(provider: str) -> Optional[str]:
         pass
     if provider == "ollama":
         cfg = load_config()
-        model = cfg.get("cortana_model", "llama3") or "llama3"
+        model = cfg.get("jade_model", "llama3") or "llama3"
         return model if "/" in model else f"ollama/{model}"
     return _HIVE_FALLBACK_MODELS.get(provider)
 

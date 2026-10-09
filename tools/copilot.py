@@ -14,7 +14,7 @@ def copilot_suggest(query):
         console.print(f"[bold cyan]🔍 Querying GitHub Copilot CLI for suggestion...[/bold cyan]")
 
         # We run it and let the user interact with the shell if needed
-        # but for CORTANA tool use, we'll try to get the explanation if possible.
+        # but for JADE tool use, we'll try to get the explanation if possible.
         res = subprocess.run(cmd, capture_output=True, text=True)
         return res.stdout if res.stdout else "Copilot suggested a command (check terminal)."
     except Exception as e:

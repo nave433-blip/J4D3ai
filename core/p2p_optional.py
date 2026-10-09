@@ -3,7 +3,7 @@
 * mDNS advertisement/discovery via the third-party ``zeroconf`` package.
 * UPnP port mapping via the third-party ``miniupnpc`` package.
 
-Neither is a dependency of Cortana. When the package is absent, advertise/
+Neither is a dependency of Jade. When the package is absent, advertise/
 discover functions return ``None`` (or an honest failure dict for UPnP) and
 nothing raises. Tests must skip cleanly when the libraries are missing —
 use ``pytest.importorskip("zeroconf")`` / ``pytest.importorskip("miniupnpc")``
@@ -12,8 +12,8 @@ for the live paths.
 import socket
 import time
 
-MDNS_SERVICE_TYPE = "_cortana-p2p._tcp.local."
-MDNS_NAME_PREFIX = "Cortana-"
+MDNS_SERVICE_TYPE = "_jade-p2p._tcp.local."
+MDNS_NAME_PREFIX = "Jade-"
 
 
 # ---------------------------------------------------------------------------
@@ -29,7 +29,7 @@ def _local_ip():
 
 
 def mdns_advertise(port=11435, name=None):
-    """Advertise this Cortana node on the LAN via mDNS.
+    """Advertise this Jade node on the LAN via mDNS.
 
     Returns a handle with a ``close()`` method, or ``None`` when
     ``zeroconf`` is not installed. The TXT record carries node_id,
@@ -44,8 +44,8 @@ def mdns_advertise(port=11435, name=None):
     from core.config import load_config
 
     node_id = get_node_id()
-    svc_name = (name or load_config().get("cortana_name", "Cortana") or
-                "Cortana")
+    svc_name = (name or load_config().get("jade_name", "Jade") or
+                "Jade")
     # mDNS service names must be unique on the link; suffix with node id.
     reg_name = f"{MDNS_NAME_PREFIX}{svc_name}-{node_id[:6]}.{MDNS_SERVICE_TYPE}"
     try:
@@ -73,7 +73,7 @@ def mdns_advertise(port=11435, name=None):
 
 
 def mdns_discover(timeout=3.0):
-    """Browse for Cortana mDNS advertisements on the LAN.
+    """Browse for Jade mDNS advertisements on the LAN.
 
     Returns a list of ``{"name", "host", "port", "node_id", "version"}``,
     or ``None`` when ``zeroconf`` is not installed.
@@ -160,7 +160,7 @@ def p2p_upnp_map(port=11435, protocol="TCP", lease_seconds=3600):
         except Exception:
             lan_addr = _local_ip()
         mapped = upnp.addportmapping(port, protocol, lan_addr, port,
-                                     "Cortana P2P", "")
+                                     "Jade P2P", "")
         if mapped:
             return {"ok": True, "external_ip": external, "error": None}
         return {"ok": False, "external_ip": external,

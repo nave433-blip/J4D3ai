@@ -46,7 +46,7 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
         qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         _CallbackHandler.code = qs.get("code", [None])[0]
         _CallbackHandler.error = qs.get("error", [None])[0]
-        body = ("<h2>✅ Connected — you can close this tab and return to Cortana.</h2>"
+        body = ("<h2>✅ Connected — you can close this tab and return to Jade.</h2>"
                 if _CallbackHandler.code else
                 f"<h2>❌ Authorization failed: {_CallbackHandler.error}</h2>").encode()
         self.send_response(200)
@@ -192,7 +192,7 @@ def api_get(url: str, access_token: str, params: Optional[Dict[str, str]] = None
 
 
 def load_google_client_secrets() -> Optional[Dict[str, str]]:
-    """Read OAuth client credentials from ~/.cortana/google_client.json.
+    """Read OAuth client credentials from ~/.jade/google_client.json.
 
     Shared with core.google_auth's flow so users configure Google once.
     Returns {"client_id", "client_secret"} or None.

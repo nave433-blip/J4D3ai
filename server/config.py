@@ -1,4 +1,4 @@
-"""Environment-based configuration for the Cortana reference server.
+"""Environment-based configuration for the Jade reference server.
 
 All settings come from the environment (see ``.env.example``). Nothing
 secret is ever logged — use ``redacted()`` when printing config.
@@ -23,20 +23,20 @@ def _env_int(name: str, default: int) -> int:
 
 @dataclass
 class ServerConfig:
-    host: str = field(default_factory=lambda: _env("CORTANA_SERVER_HOST", "0.0.0.0"))
-    port: int = field(default_factory=lambda: _env_int("CORTANA_SERVER_PORT", 8080))
-    data_dir: str = field(default_factory=lambda: _env("CORTANA_DATA_DIR", "./server-data"))
+    host: str = field(default_factory=lambda: _env("JADE_SERVER_HOST", "0.0.0.0"))
+    port: int = field(default_factory=lambda: _env_int("JADE_SERVER_PORT", 8080))
+    data_dir: str = field(default_factory=lambda: _env("JADE_DATA_DIR", "./server-data"))
     database_url: str = field(default_factory=lambda: _env("DATABASE_URL", ""))
 
     # Fernet key (base64, 32 bytes) protecting stored connector tokens.
     # Generate: openssl rand -base64 32
-    token_key: str = field(default_factory=lambda: _env("CORTANA_TOKEN_KEY", ""))
+    token_key: str = field(default_factory=lambda: _env("JADE_TOKEN_KEY", ""))
 
-    session_ttl_seconds: int = field(default_factory=lambda: _env_int("CORTANA_SESSION_TTL", 30 * 24 * 3600))
-    pairing_code_ttl_seconds: int = field(default_factory=lambda: _env_int("CORTANA_PAIRING_TTL", 600))
-    public_url: str = field(default_factory=lambda: _env("CORTANA_PUBLIC_URL", "http://localhost:8080"))
+    session_ttl_seconds: int = field(default_factory=lambda: _env_int("JADE_SESSION_TTL", 30 * 24 * 3600))
+    pairing_code_ttl_seconds: int = field(default_factory=lambda: _env_int("JADE_PAIRING_TTL", 600))
+    public_url: str = field(default_factory=lambda: _env("JADE_PUBLIC_URL", "http://localhost:8080"))
 
-    rate_limit_per_minute: int = field(default_factory=lambda: _env_int("CORTANA_RATE_LIMIT", 120))
+    rate_limit_per_minute: int = field(default_factory=lambda: _env_int("JADE_RATE_LIMIT", 120))
 
     # --- OAuth app credentials (server holds ONE set per provider so end
     # users never register their own OAuth apps) ---
@@ -55,10 +55,10 @@ class ServerConfig:
     apple_private_key_pem: str = field(default_factory=lambda: _env("APPLE_PRIVATE_KEY_PEM", ""))
 
     # --- Hosted chat completions (OpenAI-compatible endpoint) ---
-    chat_provider: str = field(default_factory=lambda: _env("CORTANA_CHAT_PROVIDER", ""))
-    chat_base_url: str = field(default_factory=lambda: _env("CORTANA_CHAT_BASE_URL", ""))
-    chat_api_key: str = field(default_factory=lambda: _env("CORTANA_CHAT_API_KEY", ""))
-    chat_model: str = field(default_factory=lambda: _env("CORTANA_CHAT_MODEL", ""))
+    chat_provider: str = field(default_factory=lambda: _env("JADE_CHAT_PROVIDER", ""))
+    chat_base_url: str = field(default_factory=lambda: _env("JADE_CHAT_BASE_URL", ""))
+    chat_api_key: str = field(default_factory=lambda: _env("JADE_CHAT_API_KEY", ""))
+    chat_model: str = field(default_factory=lambda: _env("JADE_CHAT_MODEL", ""))
 
     def validate(self) -> list[str]:
         """Return a list of configuration problems (empty = ok to boot)."""

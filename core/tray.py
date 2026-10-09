@@ -79,16 +79,16 @@ def run_tray() -> None:
     ok, reason = tray_supported()
     os_name, slot = platform_slot()
     if not ok:
-        print(f"[cortana] No {slot} icon on {os_name} right now: {reason}.")
-        print("[cortana] The CLI, dashboard (`cortana dashboard`), and overlay "
-              "(`cortana overlay`) all work without it.")
+        print(f"[jade] No {slot} icon on {os_name} right now: {reason}.")
+        print("[jade] The CLI, dashboard (`jade dashboard`), and overlay "
+              "(`jade overlay`) all work without it.")
         return
-    print(f"[cortana] {reason}")
+    print(f"[jade] {reason}")
 
     import pystray
     from pystray import MenuItem as Item, Menu
 
-    icon = pystray.Icon("cortana", _icon_image(), "Cortana",
+    icon = pystray.Icon("jade", _icon_image(), "Jade",
                         menu=Menu(
                             Item("Show overlay",
                                  lambda: _show_overlay()),
@@ -114,23 +114,23 @@ def _toggle_wakeword() -> None:
     current = _get_flag("wakeword_enabled", False)
     if not current and not ww.notice_acknowledged():
         # First enable: privacy notice goes through the terminal, not a popup.
-        print("[cortana] " + ww.WAKEWORD_NOTICE)
+        print("[jade] " + ww.WAKEWORD_NOTICE)
         try:
-            answer = input("Enable 'Hey Cortana' wake-word listening? [y/N] ").strip().lower()
+            answer = input("Enable 'Hey Jade' wake-word listening? [y/N] ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             answer = "n"
         if answer not in ("y", "yes"):
-            print("[cortana] Wake-word listening stays off.")
+            print("[jade] Wake-word listening stays off.")
             return
         ww.acknowledge_notice()
     _set_flag("wakeword_enabled", not current)
-    print(f"[cortana] Wake-word listening {'enabled' if not current else 'disabled'}.")
+    print(f"[jade] Wake-word listening {'enabled' if not current else 'disabled'}.")
 
 
 def _toggle_voice() -> None:
     current = _get_flag("voice_enabled", True)
     _set_flag("voice_enabled", not current)
-    print(f"[cortana] Voice output {'enabled' if not current else 'disabled'}.")
+    print(f"[jade] Voice output {'enabled' if not current else 'disabled'}.")
 
 
 def _personality_items():
@@ -144,7 +144,7 @@ def _personality_items():
                 cfg = load_config()
                 cfg["personality"] = name
                 save_config(cfg)
-                print(f"[cortana] Personality: {title}")
+                print(f"[jade] Personality: {title}")
             return _set
         items.append(Item(p.title, _make()))
     return items

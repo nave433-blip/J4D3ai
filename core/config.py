@@ -65,7 +65,7 @@ DEFAULT_CONFIG = {
     "dropbox_token": "",
     "gdrive_token": "",
     "github_token": "",
-    "personality": "cortana",
+    "personality": "jade",
     "active_prompt": "default",
     "model_mode": "manual",
     "self_repair": True,
@@ -80,7 +80,7 @@ DEFAULT_CONFIG = {
     "shell_allowlist": [],
     # Dev mode: local-only diagnostics (debug logging, request timing,
     # DEV MODE banner) + optional personal instructions from
-    # ~/.cortana/dev_instructions.md. Also enabled via CORTANA_DEV_MODE=1
+    # ~/.jade/dev_instructions.md. Also enabled via JADE_DEV_MODE=1
     # (JARVIS_DEV_MODE still works as a deprecated alias).
     "dev_mode": False,
     # --- Maximal settings schema (core/settings.py). Kept in sync with
@@ -114,7 +114,7 @@ DEFAULT_CONFIG = {
     # voice
     "voice_enabled": False,
     "wake_word_enabled": False,
-    "voice_profile": "cortana-default",
+    "voice_profile": "jade-default",
     "stt_engine": "auto",
     "tts_engine": "auto",
     # network
@@ -160,7 +160,7 @@ def load_config():
     # Migrate pre-rename keys so existing configs keep working. (Check the
     # raw user file, not the merged dict — defaults already contain the new
     # keys, which would otherwise shadow the old values.) Chain:
-    # jarvis_* -> cortana_* -> jade_*; newest present name wins.
+    # jarvis_* -> jade_* -> jade_*; newest present name wins.
     for new_key, old_keys in (("jade_model", ("cortana_model", "jarvis_model")),
                               ("jade_name", ("cortana_name", "jarvis_name"))):
         if new_key not in raw:
@@ -210,7 +210,7 @@ def verify_and_fix_local_llm():
             return True
     except Exception:
         console.print("[yellow]⚠️ Ollama unreachable at configured host.[/yellow]")
-        console.print("[dim]CORTANA will not auto-switch providers. You can run '/repair-ollama-cmd' or '/setup' to reconfigure.[/dim]")
+        console.print("[dim]JADE will not auto-switch providers. You can run '/repair-ollama-cmd' or '/setup' to reconfigure.[/dim]")
         return False
     return True
 
@@ -233,12 +233,12 @@ def _print_first_use():
     Console().print(next_steps_panel(
         ["`/connections --test` — verify your providers are reachable",
          "`/chat hello` — have your first conversation",
-         "`/fix .` — let CORTANA audit this directory"],
+         "`/fix .` — let JADE audit this directory"],
         title="You're set up — try these",
     ))
 
 def setup_wizard():
-    console.print("[bold cyan]Welcome to CORTANA Setup[/bold cyan]\n")
+    console.print("[bold cyan]Welcome to JADE Setup[/bold cyan]\n")
     console.print("[dim]Takes about a minute. API keys are validated, then stored in your "
                   "OS keyring — never in plain text.[/dim]\n")
 
@@ -252,7 +252,7 @@ def setup_wizard():
 
     if config["provider"] == "ollama":
         config["ollama_host"] = smart_input("Ollama Host URL", config["ollama_host"], auto_detect_func=detect_ollama)
-        config["cortana_model"] = Prompt.ask("Ollama Model Name", default=config["cortana_model"])
+        config["jade_model"] = Prompt.ask("Ollama Model Name", default=config["jade_model"])
     else:
         # Credentials go through the secure /connect flow (keyring + validation),
         # never into the plaintext config file.
@@ -272,8 +272,8 @@ def setup_wizard():
     _print_first_use()
 
 def quick_setup():
-    """Hyper-automated setup for CORTANA."""
-    console.print("[bold cyan]🚀 Initializing CORTANA Automation Setup...[/bold cyan]")
+    """Hyper-automated setup for JADE."""
+    console.print("[bold cyan]🚀 Initializing JADE Automation Setup...[/bold cyan]")
     config = load_config()
 
     # 1. Detect Ollama
@@ -281,13 +281,13 @@ def quick_setup():
     if host:
         config["provider"] = "ollama"
         config["ollama_host"] = host
-        config["cortana_model"] = "llama3"
+        config["jade_model"] = "llama3"
         console.print(f"[green]✅ Local Ollama detected at {host}[/green]")
     else:
         # No silent Gemini default (that dead-ended: no key, no guidance).
         # Take the user straight to the connection center instead.
         console.print("[yellow]⚠️ No local Ollama found.[/yellow]")
-        console.print("[dim]CORTANA needs an AI provider to think. Let's link one now — "
+        console.print("[dim]JADE needs an AI provider to think. Let's link one now — "
                       "your key is validated, then stored in the OS keyring.[/dim]\n")
         from core.auth import AuthManager
         from core.connect import is_configured, run_connect_wizard
@@ -337,12 +337,12 @@ def get_env_with_config(key):
 def is_dev_mode(config=None):
     """Dev-mode toggle for the developer's own machine.
 
-    CORTANA_DEV_MODE env var wins when set to a recognized value:
+    JADE_DEV_MODE env var wins when set to a recognized value:
     1/true/yes/on enables, 0/false/no/off disables. JARVIS_DEV_MODE is
     honored as a deprecated fallback. When no env var is set (or
     unrecognized), the `dev_mode` config key decides.
     """
-    env = os.getenv("CORTANA_DEV_MODE", "").strip().lower()
+    env = os.getenv("JADE_DEV_MODE", "").strip().lower()
     if not env:
         env = os.getenv("JARVIS_DEV_MODE", "").strip().lower()
     if env in ("1", "true", "yes", "on"):

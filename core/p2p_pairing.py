@@ -1,10 +1,10 @@
-"""LAN-first pairing for Cortana P2P.
+"""LAN-first pairing for Jade P2P.
 
 A pairing code is a short, copy-pasteable string that carries the peer's
 shared P2P token plus its identity::
 
-    cortana p2p-pair          # on the machine you want to connect TO
-    cortana p2p-join <code>   # on the machine connecting FROM
+    jade p2p-pair          # on the machine you want to connect TO
+    jade p2p-join <code>   # on the machine connecting FROM
 
 Honest limits (no fake "cloud pairing"):
 * The code does NOT traverse NAT by itself. Join works when both machines
@@ -60,7 +60,7 @@ def make_pairing_code(port=11435):
     payload = {
         "v": PAIRING_VERSION,
         "token": token,
-        "name": cfg.get("cortana_name", "Cortana"),
+        "name": cfg.get("jade_name", "Jade"),
         "node_id": get_node_id(),
     }
     raw = base64.urlsafe_b64encode(
@@ -78,7 +78,7 @@ def parse_pairing_code(code):
     """Decode a pairing code back to its payload dict. Raises ValueError."""
     code = (code or "").strip()
     if not code.startswith(PAIRING_PREFIX):
-        raise ValueError("not a Cortana pairing code (expected to start with "
+        raise ValueError("not a Jade pairing code (expected to start with "
                          f"'{PAIRING_PREFIX}')")
     raw = code[len(PAIRING_PREFIX):]
     try:
@@ -157,11 +157,11 @@ def join_pairing(code, port=11435, timeout=2.0, discovery_port=11436,
                 "  1. On the peer's network, port-forward TCP 11435 to the "
                 "peer machine.\n"
                 "  2. On the peer, set \"p2p_public_endpoint\": "
-                "\"<peer-host>:11435\" in ~/.cortana/config.json\n"
+                "\"<peer-host>:11435\" in ~/.jade/config.json\n"
                 "     (alternatively run a discovery server with "
-                "`cortana p2p-discovery` and set \"discovery_server_url\" "
+                "`jade p2p-discovery` and set \"discovery_server_url\" "
                 "on both nodes).\n"
-                "  3. Re-run: cortana p2p-join <code>"
+                "  3. Re-run: jade p2p-join <code>"
             ),
         }
 

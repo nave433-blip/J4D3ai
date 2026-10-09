@@ -1,10 +1,10 @@
-"""Maximal typed settings schema for Cortana.
+"""Maximal typed settings schema for Jade.
 
 The schema is the union of what major competitors expose (ChatGPT, Claude,
 Copilot, Gemini, Perplexity): appearance, chat, models, privacy,
 notifications, hotkeys, voice, network, sandbox, data, memory, connectors.
 
-Backed by ``~/.cortana/config.json`` through :mod:`core.config`.
+Backed by ``~/.jade/config.json`` through :mod:`core.config`.
 Profile overrides (:mod:`core.profiles`) layer on top via :func:`get_setting`.
 
 ``live: True`` marks a setting that takes effect without a restart
@@ -35,7 +35,7 @@ SETTINGS_SCHEMA: List[Dict[str, Any]] = [
      "description": "Compact output: shorter banners, denser tables."},
     {"key": "show_banner", "type": "bool", "default": True,
      "category": "appearance", "live": True,
-     "description": "Show the Cortana banner on startup."},
+     "description": "Show the Jade banner on startup."},
     {"key": "easter_eggs", "type": "bool", "default": True,
      "category": "appearance", "live": True,
      "description": "Show tasteful Halo / retro-computing easter eggs."},
@@ -59,13 +59,13 @@ SETTINGS_SCHEMA: List[Dict[str, Any]] = [
     # -- models -----------------------------------------------------------
     {"key": "model_chat", "type": "str", "default": "",
      "category": "models", "live": True,
-     "description": "Default model for chat (empty = follow cortana_model)."},
+     "description": "Default model for chat (empty = follow jade_model)."},
     {"key": "model_code", "type": "str", "default": "",
      "category": "models", "live": True,
-     "description": "Default model for coding tasks (empty = follow cortana_model)."},
+     "description": "Default model for coding tasks (empty = follow jade_model)."},
     {"key": "model_reasoning", "type": "str", "default": "",
      "category": "models", "live": True,
-     "description": "Default model for deep reasoning (empty = follow cortana_model)."},
+     "description": "Default model for deep reasoning (empty = follow jade_model)."},
     {"key": "model_routing", "type": "bool", "default": False,
      "category": "models", "live": True,
      "description": "Auto-route tasks to the best model for the job."},
@@ -76,7 +76,7 @@ SETTINGS_SCHEMA: List[Dict[str, Any]] = [
                     "your machine unless you enable it."},
     {"key": "p2p_discovery", "type": "bool", "default": True,
      "category": "privacy", "live": True,
-     "description": "Allow local-network discovery of this Cortana node."},
+     "description": "Allow local-network discovery of this Jade node."},
     {"key": "p2p_enabled", "type": "bool", "default": True,
      "category": "privacy", "live": False,
      "description": "Enable the P2P server entirely (restart the server to apply)."},
@@ -100,8 +100,8 @@ SETTINGS_SCHEMA: List[Dict[str, Any]] = [
      "description": "Enable voice input/output (opt-in)."},
     {"key": "wake_word_enabled", "type": "bool", "default": False,
      "category": "voice", "live": True,
-     "description": "\"Hey Cortana\" hotword detection (opt-in; mic stays local)."},
-    {"key": "voice_profile", "type": "str", "default": "cortana-default",
+     "description": "\"Hey Jade\" hotword detection (opt-in; mic stays local)."},
+    {"key": "voice_profile", "type": "str", "default": "jade-default",
      "category": "voice", "live": True,
      "description": "TTS voice profile name (see /voice to list)."},
     {"key": "stt_engine", "type": "str", "default": "auto",
@@ -238,7 +238,7 @@ def set_setting(key: str, value: Any, _confirm_sensitive: bool = True) -> Dict[s
     entry = _find(key)
     if entry is None:
         return {"ok": False, "error": f"Unknown setting '{key}'. "
-                "Run `cortana settings list` to see all settings."}
+                "Run `jade settings list` to see all settings."}
     try:
         coerced = coerce(entry, value)
     except ValueError as e:
@@ -270,7 +270,7 @@ def export_settings() -> Dict[str, Any]:
 
 
 def settings_table(category: Optional[str] = None) -> Table:
-    table = Table(title="Cortana Settings", border_style="cyan")
+    table = Table(title="Jade Settings", border_style="cyan")
     table.add_column("Setting", style="cyan", no_wrap=True)
     table.add_column("Value", style="white")
     table.add_column("Live", style="dim", no_wrap=True)

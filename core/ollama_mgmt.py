@@ -702,7 +702,7 @@ class OllamaManager:
             except OllamaError as e:
                 results.append({"model": model, "host": host, "ok": False, "error": str(e)})
                 console.print(f"[red]✗ {model}: {e}[/red]")
-        console.print("[dim]Tip: schedule this inside Cortana with "
+        console.print("[dim]Tip: schedule this inside Jade with "
                       "`/schedule add --name \"nightly pull\" --action \"/ollama auto-pull\" "
                       "--cron \"0 4 * * *\"`.[/dim]")
         return results

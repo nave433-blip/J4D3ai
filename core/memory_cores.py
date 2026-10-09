@@ -3,7 +3,7 @@
 Unlike the opaque FAISS vector store, cores are plain JSONL files the user
 can read, export and delete at will::
 
-    ~/.cortana/memory/cores/<core>.jsonl   # one JSON object per line
+    ~/.jade/memory/cores/<core>.jsonl   # one JSON object per line
 
 Rules (pinned by the project's security posture):
 - Everything is opt-in. Auto-capture defaults OFF (settings key

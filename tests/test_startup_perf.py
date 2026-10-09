@@ -1,7 +1,7 @@
 """Startup-time regression tests.
 
 litellm (~3s import) and paramiko (~110ms) must stay lazily imported so
-`cortana --help` and other non-LLM paths start fast. These run in fresh
+`jade --help` and other non-LLM paths start fast. These run in fresh
 subprocesses so sys.modules state is meaningful.
 """
 import subprocess

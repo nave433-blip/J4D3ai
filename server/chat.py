@@ -1,9 +1,9 @@
 """OpenAI-compatible ``/v1/chat/completions`` for the hosted server.
 
 This is the HOSTED counterpart to the on-device API server (Round A):
-point any OpenAI-compatible client at ``$CORTANA_PUBLIC_URL/v1`` with a
-Cortana session token as the bearer key and requests are relayed to the
-provider configured via ``CORTANA_CHAT_*``.
+point any OpenAI-compatible client at ``$JADE_PUBLIC_URL/v1`` with a
+Jade session token as the bearer key and requests are relayed to the
+provider configured via ``JADE_CHAT_*``.
 
 ``http_post`` / streaming are injectable for tests; no live network in
 the test suite.
@@ -26,12 +26,12 @@ class ChatError(Exception):
 def _provider_request(cfg, body: dict, *, http_post=None) -> dict:
     if not cfg.chat_base_url or not cfg.chat_api_key:
         raise ChatError(
-            "no chat provider configured — set CORTANA_CHAT_BASE_URL and "
-            "CORTANA_CHAT_API_KEY (see .env.example)", status=501,
+            "no chat provider configured — set JADE_CHAT_BASE_URL and "
+            "JADE_CHAT_API_KEY (see .env.example)", status=501,
         )
     model = body.get("model") or cfg.chat_model
     if not model:
-        raise ChatError("no model specified and CORTANA_CHAT_MODEL is unset", status=400)
+        raise ChatError("no model specified and JADE_CHAT_MODEL is unset", status=400)
     upstream = {
         "model": model,
         "messages": body.get("messages", []),
@@ -46,7 +46,7 @@ def _provider_request(cfg, body: dict, *, http_post=None) -> dict:
             data=json.dumps(upstream).encode(),
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {cfg.chat_api_key}",
-                     "User-Agent": "cortana-server/0.1"},
+                     "User-Agent": "jade-server/0.1"},
         )
         with urllib.request.urlopen(req, timeout=120) as resp:
             return json.loads(resp.read().decode())
@@ -96,7 +96,7 @@ def chat_completions_stream(cfg, body: dict, *, http_post_stream=None):
             data=json.dumps(upstream).encode(),
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {cfg.chat_api_key}",
-                     "User-Agent": "cortana-server/0.1"},
+                     "User-Agent": "jade-server/0.1"},
         )
         with urllib.request.urlopen(req, timeout=120) as resp:
             for line in resp:

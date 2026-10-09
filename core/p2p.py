@@ -29,17 +29,17 @@ console = Console()
 # networks you trust, and use a strong p2p_token.
 #
 # TLS OPT-IN: to encrypt the P2P transport, set "p2p_use_tls": true in
-# ~/.cortana/config.json and point "p2p_tls_certfile"/"p2p_tls_keyfile" at PEM
+# ~/.jade/config.json and point "p2p_tls_certfile"/"p2p_tls_keyfile" at PEM
 # files. A self-signed certificate is fine on a trusted LAN; generate one with
 #   python3 -c "from core.p2p import generate_self_signed_cert; \
 #       generate_self_signed_cert('/path/to/p2p.crt', '/path/to/p2p.key')"
 # (equivalently: openssl req -x509 -newkey rsa:2048 -keyout p2p.key -out p2p.crt
-#  -days 825 -nodes -subj "/CN=cortana-p2p").
+#  -days 825 -nodes -subj "/CN=jade-p2p").
 # TLS clients skip certificate verification by default (verify_tls=False) so
 # self-signed certs work; pass verify_tls=True when you have a CA-signed cert
 # you want validated. Default behavior (plaintext HTTP) is unchanged.
 
-# Remote file operations are confined to the CORTANA workspace root.
+# Remote file operations are confined to the JADE workspace root.
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 
 def _is_path_confined(raw_path: str) -> "Path | None":
@@ -70,11 +70,16 @@ P2P_FEATURES = {
     "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk",
               "hive_cache_get", "hive_cache_put", "capabilities",
               "skill_offer", "session_handoff",
+              "file_send", "file_fetch", "message", "p2p_sync_memory"],
+    # 0.3.0: JADE rebrand — no P2P wire changes, same feature set as 0.2.6.
+    "0.3.0": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk",
+              "hive_cache_get", "hive_cache_put", "capabilities",
+              "skill_offer", "session_handoff",
               "file_send", "file_fetch", "message", "p2p_sync_memory"]
 }
 
 def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
-    """Check if the remote CORTANA version supports the requested action."""
+    """Check if the remote JADE version supports the requested action."""
     supported_features = P2P_FEATURES.get(remote_version, P2P_FEATURES.get("0.1.7"))
     if action == "status": return True
     return action in supported_features
@@ -105,7 +110,7 @@ def check_permission(peer_ip, action):
     if choice == "never":
         return False
 
-    console.print(f"\n[bold yellow]⚠️ REMOTE REQUEST:[/bold yellow] CORTANA instance at [cyan]{peer_ip}[/cyan] wants to [bold magenta]{action}[/bold magenta].")
+    console.print(f"\n[bold yellow]⚠️ REMOTE REQUEST:[/bold yellow] JADE instance at [cyan]{peer_ip}[/cyan] wants to [bold magenta]{action}[/bold magenta].")
     options = {"1": "always", "2": "this once", "3": "never", "4": "not right now"}
     console.print("[1] Always | [2] This once | [3] Never | [4] Not right now")
     ans = Prompt.ask("Choice", choices=["1", "2", "3", "4"], default="4")
@@ -153,7 +158,7 @@ def _prune_transfers():
         for tid in stale:
             del _file_transfers[tid]
 
-class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
+class JadeP2PHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         peer_ip = self.client_address[0]
         content_length = int(self.headers.get('Content-Length', 0))
@@ -206,9 +211,9 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             status_data = {
                 "status": "online",
                 "node_id": node_id,
-                "name": cfg.get("cortana_name", "Cortana"),
+                "name": cfg.get("jade_name", "Jade"),
                 "version": CURRENT_VERSION,
-                "model": cfg.get("cortana_model", "unknown"),
+                "model": cfg.get("jade_model", "unknown"),
                 "local_models": cfg.get("detected_local_models", []),
                 "p2p_enabled": cfg.get("p2p_enabled", True),
                 "hive_load": health,
@@ -276,7 +281,7 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             full_path = _is_path_confined(file_path) if file_path else None
             if full_path is None:
                 self.send_response(403); self.end_headers()
-                self.wfile.write(b"Forbidden: path is outside the CORTANA workspace"); return
+                self.wfile.write(b"Forbidden: path is outside the JADE workspace"); return
             try:
                 if full_path.is_file():
                     with open(full_path, "r") as f: content = f.read()
@@ -294,7 +299,7 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             full_path = _is_path_confined(file_path)
             if full_path is None:
                 self.send_response(403); self.end_headers()
-                self.wfile.write(b"Forbidden: path is outside the CORTANA workspace"); return
+                self.wfile.write(b"Forbidden: path is outside the JADE workspace"); return
             from tools.editor import replace_in_file
             try:
                 res = replace_in_file(str(full_path), old_s, new_s, interactive=False)
@@ -319,7 +324,7 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             full_path = _is_path_confined(file_path) if file_path else None
             if not tid or full_path is None:
                 self.send_response(403); self.end_headers()
-                self.wfile.write(b"Forbidden: bad transfer id or path outside the CORTANA workspace"); return
+                self.wfile.write(b"Forbidden: bad transfer id or path outside the JADE workspace"); return
             if total_chunks < 1 or total_chunks > (P2P_MAX_FILE // 1024 + 1) \
                     or not (0 <= chunk_index < total_chunks):
                 self.send_response(400); self.end_headers()
@@ -377,7 +382,7 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             full_path = _is_path_confined(file_path) if file_path else None
             if full_path is None:
                 self.send_response(403); self.end_headers()
-                self.wfile.write(b"Forbidden: path outside the CORTANA workspace"); return
+                self.wfile.write(b"Forbidden: path outside the JADE workspace"); return
             try:
                 offset = max(0, int(data.get("offset", 0)))
                 length = int(data.get("length", P2P_MAX_CHUNK))
@@ -541,7 +546,7 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
 # Optional TLS (stdlib ssl). All helpers are opt-in; defaults stay plaintext.
 # ---------------------------------------------------------------------------
 
-def generate_self_signed_cert(certfile, keyfile=None, hostname="cortana-p2p"):
+def generate_self_signed_cert(certfile, keyfile=None, hostname="jade-p2p"):
     """Generate a self-signed cert/key pair using the openssl CLI.
 
     Uses an argv list (no shell=True), so paths cannot inject commands.
@@ -594,7 +599,7 @@ def _make_p2p_server(port=0, use_tls=False, certfile=None, keyfile=None, bind="1
     """
     from core.config import load_config
     cfg = load_config()
-    httpd = ThreadedHTTPServer((bind, port), CortanaP2PHandler)
+    httpd = ThreadedHTTPServer((bind, port), JadeP2PHandler)
     if use_tls:
         certfile = certfile or cfg.get("p2p_tls_certfile")
         keyfile = keyfile or cfg.get("p2p_tls_keyfile") or certfile
@@ -602,7 +607,7 @@ def _make_p2p_server(port=0, use_tls=False, certfile=None, keyfile=None, bind="1
             raise ValueError(
                 "P2P TLS is enabled but no certificate is configured. "
                 "Set 'p2p_tls_certfile' (and 'p2p_tls_keyfile') in "
-                "~/.cortana/config.json or pass certfile=/keyfile= explicitly."
+                "~/.jade/config.json or pass certfile=/keyfile= explicitly."
             )
         httpd.socket = _build_ssl_context(certfile, keyfile).wrap_socket(
             httpd.socket, server_side=True
@@ -632,7 +637,7 @@ def run_p2p_server(port=11435, use_tls=None, certfile=None, keyfile=None,
     scheme = "https" if use_tls else "http"
     with _make_p2p_server(port, use_tls=use_tls, certfile=certfile,
                           keyfile=keyfile, bind="") as httpd:
-        console.print(f"[green]🚀 CORTANA P2P Server listening on port {port} ({scheme})...[/green]")
+        console.print(f"[green]🚀 JADE P2P Server listening on port {port} ({scheme})...[/green]")
         httpd.serve_forever()
 
 def run_udp_discovery_listener(http_port, discovery_port=11436):
@@ -643,7 +648,7 @@ def run_udp_discovery_listener(http_port, discovery_port=11436):
             data, addr = sock.recvfrom(1024)
             if data == b"JARVIS_DISCOVERY_REQUEST":
                 from core.config import load_config
-                name = load_config().get("cortana_name", "Cortana")
+                name = load_config().get("jade_name", "Jade")
                 sock.sendto(f"JARVIS_DISCOVERY_RESPONSE|{name}|{http_port}".encode(), addr)
     except Exception as e: console.print(f"[dim]UDP Discovery Error: {e}[/dim]")
     finally: sock.close()
@@ -689,7 +694,7 @@ def discover_peer_endpoints(discovery_port=11436, timeout=1.5, target='<broadcas
     return found
 
 
-def scan_for_cortana_peer_endpoints(port=11435, timeout=1.5, use_tls=None,
+def scan_for_jade_peer_endpoints(port=11435, timeout=1.5, use_tls=None,
                                    verify_tls=False, discovery_port=11436):
     """Discover peers as (ip, http_port) pairs.
 
@@ -740,10 +745,10 @@ def scan_for_cortana_peer_endpoints(port=11435, timeout=1.5, use_tls=None,
     return sorted(found)
 
 
-def scan_for_cortana_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
+def scan_for_jade_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
                           discovery_port=11436):
     """Backwards-compatible wrapper returning just the peer IPs."""
-    return sorted({ip for ip, _port in scan_for_cortana_peer_endpoints(
+    return sorted({ip for ip, _port in scan_for_jade_peer_endpoints(
         port, timeout, use_tls, verify_tls, discovery_port)})
 
 
@@ -781,7 +786,7 @@ def p2p_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
     ``last_seen`` for LAN peers is the time of the last successful status
     probe; for global peers it is the discovery server's heartbeat stamp.
     Deliberately skips the slow /24 subnet sweep that
-    :func:`scan_for_cortana_peer_endpoints` performs — presence is about who
+    :func:`scan_for_jade_peer_endpoints` performs — presence is about who
     announced themselves, not a port scan.
     """
     from core.config import load_config
@@ -988,7 +993,7 @@ def p2p_fetch_file(peer_ip, remote_path, local_path, port=11435, use_tls=None,
     return {"ok": True, "bytes": len(blob), "sha256": expect_sha}
 
 # ---------------------------------------------------------------------------
-# Peer direct messaging. Inbox lives at ~/.cortana/p2p_inbox.json, capped at
+# Peer direct messaging. Inbox lives at ~/.jade/p2p_inbox.json, capped at
 # 500 entries (newest kept). Path is resolved at call time so tests can
 # isolate it by monkeypatching core.config.CONFIG_DIR.
 # ---------------------------------------------------------------------------
@@ -1065,7 +1070,7 @@ def p2p_push_memory(peer_ip, core, query="", limit=50, port=11435,
     """
     if not _memory_sync_opted_in():
         return {"ok": False, "error": "local opt-in missing: set "
-                "'p2p_memory_sync': true in ~/.cortana/config.json"}
+                "'p2p_memory_sync': true in ~/.jade/config.json"}
     from core import memory_cores as mc_mod
     if core not in mc_mod.CORES:
         return {"ok": False, "error": f"unknown memory core '{core}'"}
@@ -1091,7 +1096,7 @@ def p2p_pull_memory(peer_ip, core, limit=50, port=11435,
     """
     if not _memory_sync_opted_in():
         return {"ok": False, "error": "local opt-in missing: set "
-                "'p2p_memory_sync': true in ~/.cortana/config.json"}
+                "'p2p_memory_sync': true in ~/.jade/config.json"}
     from core import memory_cores as mc_mod
     if core not in mc_mod.CORES:
         return {"ok": False, "error": f"unknown memory core '{core}'"}
@@ -1147,11 +1152,11 @@ def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
     scheme = _p2p_scheme(use_tls, cfg)
     if scheme == "https" and not verify_tls:
         _quiet_insecure_warnings()
-    table = Table(title="CORTANA P2P Swarm Status", border_style="cyan")
+    table = Table(title="JADE P2P Swarm Status", border_style="cyan")
     table.add_column("Peer IP"); table.add_column("Name"); table.add_column("Version"); table.add_column("Compatibility"); table.add_column("Model"); table.add_column("Latency")
-    console.print("[bold cyan]📡 Discovering CORTANA instances...[/bold cyan]")
+    console.print("[bold cyan]📡 Discovering JADE instances...[/bold cyan]")
     with Live(table, refresh_per_second=4):
-        peers = scan_for_cortana_peer_endpoints(port=port, use_tls=use_tls,
+        peers = scan_for_jade_peer_endpoints(port=port, use_tls=use_tls,
                                                verify_tls=verify_tls)
         for ip, peer_port in peers:
             start = time.time()
@@ -1169,7 +1174,7 @@ def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
 def p2p_token_menu():
     console.print("[yellow]⚠️ Tokens are transferred over plaintext HTTP. "
                   "Only request tokens from peers on networks you trust.[/yellow]")
-    peers = scan_for_cortana_peers()
+    peers = scan_for_jade_peers()
     if not peers: console.print("[yellow]No peers found.[/yellow]"); return
     table = Table(title="Peer Tokens")
     table.add_column("ID"); table.add_column("IP"); table.add_column("Tokens")
@@ -1204,14 +1209,14 @@ def start_server_background(port=11435, use_tls=None, certfile=None, keyfile=Non
 
 # Deprecated pre-rename aliases (the wire protocol is unchanged, so these
 # only matter for Python callers importing the old names).
-JarvisP2PHandler = CortanaP2PHandler
+JarvisP2PHandler = JadeP2PHandler
 
 
 def scan_for_jarvis_peers(*args, **kwargs):
-    """Deprecated alias of :func:`scan_for_cortana_peers`."""
-    return scan_for_cortana_peers(*args, **kwargs)
+    """Deprecated alias of :func:`scan_for_jade_peers`."""
+    return scan_for_jade_peers(*args, **kwargs)
 
 
 def scan_for_jarvis_peer_endpoints(*args, **kwargs):
-    """Deprecated alias of :func:`scan_for_cortana_peer_endpoints`."""
-    return scan_for_cortana_peer_endpoints(*args, **kwargs)
+    """Deprecated alias of :func:`scan_for_jade_peer_endpoints`."""
+    return scan_for_jade_peer_endpoints(*args, **kwargs)

@@ -51,9 +51,9 @@ PIP_RETRY_DELAY = 3  # seconds
 
 # Cache directory for downloaded artifacts and backups
 def get_cache_dir() -> Path:
-    # Prefer ~/.cortana/cache, fallback to repo-local .cortana_cache
+    # Prefer ~/.jade/cache, fallback to repo-local .jade_cache
     home_cache = CONFIG_DIR / "cache"
-    repo_cache = Path(os.path.dirname(os.path.abspath(__file__))) / ".." / ".cortana_cache"
+    repo_cache = Path(os.path.dirname(os.path.abspath(__file__))) / ".." / ".jade_cache"
     try:
         home_cache.mkdir(parents=True, exist_ok=True)
         return home_cache
@@ -100,7 +100,7 @@ def dry_run_download_packages(packages: List[str], include_deps: bool = True, ti
     Perform a dry-run that downloads package artifacts (wheels/sdists) to a temp dir using `pip download`.
     """
     report = {"requested": packages, "files": [], "error": None}
-    tmp = Path(tempfile.mkdtemp(prefix="cortana_pip_download_"))
+    tmp = Path(tempfile.mkdtemp(prefix="jade_pip_download_"))
     try:
         cmd = _which_pip_executable() + ["download", "--dest", str(tmp)]
         if not include_deps:
@@ -140,7 +140,7 @@ def dry_run_download_packages(packages: List[str], include_deps: bool = True, ti
 
 def save_cache_artifacts(paths: List[Path]) -> List[str]:
     """
-    Move artifact files into the cortana cache directory to be reused later.
+    Move artifact files into the jade cache directory to be reused later.
     """
     saved = []
     cache_dir = Path(CACHE_DIR)
@@ -317,7 +317,7 @@ def rollback_from_cache(backup_tar: str, base_dir: Optional[str] = None) -> bool
         if base_dir is None:
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         base = Path(base_dir)
-        tmpdir = Path(tempfile.mkdtemp(prefix="cortana_restore_"))
+        tmpdir = Path(tempfile.mkdtemp(prefix="jade_restore_"))
         console.print(f"[dim]Extracting backup {backup_tar} to temporary directory {tmpdir}[/dim]")
         with tarfile.open(backup_tar, "r:gz") as tar:
             tar.extractall(path=str(tmpdir))

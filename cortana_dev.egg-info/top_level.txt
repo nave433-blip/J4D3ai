@@ -1,6 +1,0 @@
-cli
-core
-memory
-tools
-voice
-watcher

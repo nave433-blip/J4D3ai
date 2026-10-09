@@ -10,7 +10,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-os.environ.setdefault("CORTANA_SKIP_STARTUP", "1")
+os.environ.setdefault("JADE_SKIP_STARTUP", "1")
 
 
 def test_system_find_no_shell_injection(tmp_path):
@@ -108,7 +108,7 @@ def test_p2p_path_confinement():
 def test_p2p_token_compare_is_constant_time():
     import inspect
     from core import p2p
-    src = inspect.getsource(p2p.CortanaP2PHandler.do_POST)
+    src = inspect.getsource(p2p.JadeP2PHandler.do_POST)
     assert "compare_digest" in src
 
 

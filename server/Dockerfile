@@ -1,22 +1,22 @@
-# Cortana reference cloud server.
+# Jade reference cloud server.
 # stdlib-only runtime; cryptography enables encrypted connector-token storage.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    CORTANA_DATA_DIR=/data
+    JADE_DATA_DIR=/data
 
-RUN useradd --create-home --uid 10001 --user-group cortana \
-    && mkdir -p /srv/cortana /data \
-    && chown -R cortana:cortana /srv/cortana /data
+RUN useradd --create-home --uid 10001 --user-group jade \
+    && mkdir -p /srv/jade /data \
+    && chown -R jade:jade /srv/jade /data
 
-WORKDIR /srv/cortana
+WORKDIR /srv/jade
 COPY server/ ./server/
 COPY LICENSE ./LICENSE
 
 RUN pip install --no-cache-dir -r server/requirements.txt
 
-USER cortana
+USER jade
 VOLUME ["/data"]
 EXPOSE 8080
 

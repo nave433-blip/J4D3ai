@@ -69,7 +69,7 @@ def _html_to_text(page: str) -> str:
 # ---------------------------------------------------------------- fetch_text
 
 def _fetch_http(url: str, timeout: float) -> dict:
-    req = urllib.request.Request(url, headers={"User-Agent": "cortana-browser/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "jade-browser/0.1"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()

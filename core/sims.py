@@ -1,8 +1,8 @@
-"""Cortana Sims: user-creatable agents/bots.
+"""Jade Sims: user-creatable agents/bots.
 
 A Sim is a portable JSON document: name, avatar emoji, personality label,
 system prompt, allowed tools, model choice. Sims live in
-``~/.cortana/sims/<name>.json`` and can be exported/imported as plain files,
+``~/.jade/sims/<name>.json`` and can be exported/imported as plain files,
 so they are trivially shareable.
 
 Tool gating: :func:`sim_may_use_tool` is the single choke point the agent
@@ -82,7 +82,7 @@ def create_sim(name: str, avatar: str = "🤖", personality: str = "professional
     doc = {"name": name, "avatar": avatar or "🤖", "personality": personality,
            "system_prompt": system_prompt, "allowed_tools": tools,
            "model": model, "description": description, "created": time.time(),
-           "format": "cortana-sim/1"}
+           "format": "jade-sim/1"}
     path.write_text(json.dumps(doc, indent=2))
     return {"ok": True, "name": name, "file": str(path)}
 
@@ -125,7 +125,7 @@ def import_sim(path: str) -> Dict[str, Any]:
     for field in ("name", "system_prompt"):
         if field not in doc:
             return {"ok": False, "error": f"Missing required field '{field}'."}
-    if doc.get("format", "").startswith("cortana-sim/") is False and "format" in doc:
+    if doc.get("format", "").startswith("jade-sim/") is False and "format" in doc:
         return {"ok": False, "error": f"Unknown sim format '{doc.get('format')}'."}
     name = str(doc["name"])
     if not valid_name(name):
@@ -142,7 +142,7 @@ def import_sim(path: str) -> Dict[str, Any]:
                                if isinstance(t, str) and t not in FORBIDDEN_TOOLS],
              "model": str(doc.get("model", ""))[:80],
              "description": str(doc.get("description", ""))[:500],
-             "created": time.time(), "format": "cortana-sim/1",
+             "created": time.time(), "format": "jade-sim/1",
              "imported_from": str(src)}
     target.write_text(json.dumps(clean, indent=2))
     return {"ok": True, "name": name}
@@ -163,10 +163,10 @@ def sim_may_use_tool(sim: Dict[str, Any], tool_name: str) -> bool:
 
 
 def build_sim_context(sim: Dict[str, Any], history: List[Dict[str, str]]) -> str:
-    parts = [f"You are {sim['name']}, {sim.get('description') or 'a Cortana sim'}.",
+    parts = [f"You are {sim['name']}, {sim.get('description') or 'a Jade sim'}.",
              f"Personality: {sim.get('personality', 'professional')}.",
              sim.get("system_prompt", ""),
-             "You are a Sim running inside Cortana. You have no tools unless the host grants them."]
+             "You are a Sim running inside Jade. You have no tools unless the host grants them."]
     for turn in history[-10:]:
         parts.append(f"{turn.get('role', 'user')}: {turn.get('text', '')[:2000]}")
     return "\n".join(p for p in parts if p)
@@ -192,7 +192,7 @@ def sim_chat(name: str, message: str,
 
 
 def sims_table() -> Table:
-    table = Table(title="Cortana Sims", border_style="magenta")
+    table = Table(title="Jade Sims", border_style="magenta")
     table.add_column("Sim", style="cyan", no_wrap=True)
     table.add_column("Personality", style="white")
     table.add_column("Model", style="dim")

@@ -8,7 +8,7 @@ import subprocess
 import shutil
 
 console = Console()
-BACKUP_DIR = ".cortana_backups"
+BACKUP_DIR = ".jade_backups"
 
 # Session state for permissions
 SESSION_PERMITTED = False
@@ -70,7 +70,7 @@ def replace_in_file(file_path, old_string, new_string, interactive=True):
                 console.print("[yellow]Manual override requested. Opening editor...[/yellow]")
                 editor = os.getenv("EDITOR", "nano")
                 subprocess.call([editor, file_path])
-                return "Edit completed manually by user. CORTANA state refreshed."
+                return "Edit completed manually by user. JADE state refreshed."
     
     # Create backup before applying
     create_backup(file_path)

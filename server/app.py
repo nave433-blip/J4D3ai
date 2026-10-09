@@ -1,4 +1,4 @@
-"""Cortana reference cloud server — stdlib HTTP app.
+"""Jade reference cloud server — stdlib HTTP app.
 
 Run:  ``python -m server.app``   (or ``docker compose up`` — see server/README.md)
 
@@ -33,7 +33,7 @@ from . import pairing as pairing_mod
 from .config import ServerConfig
 from .db import Database, sha256_hex
 
-log = logging.getLogger("cortana-server")
+log = logging.getLogger("jade-server")
 MAX_BODY = 1 << 20  # 1 MiB
 
 
@@ -63,7 +63,7 @@ class RateLimiter:
 # --------------------------------------------------------------------------
 
 class _Handler(BaseHTTPRequestHandler):
-    server_version = f"CortanaServer/{__version__}"
+    server_version = f"JadeServer/{__version__}"
 
     # -- plumbing ---------------------------------------------------------
     def log_message(self, fmt, *args):  # quieter than BaseHTTPRequestHandler
@@ -110,7 +110,7 @@ class _Handler(BaseHTTPRequestHandler):
         return ""
 
     @property
-    def _app(self) -> "CortanaApp":
+    def _app(self) -> "JadeApp":
         return self.server.app  # type: ignore[attr-defined]
 
     def _user(self, required: bool = True):
@@ -367,7 +367,7 @@ class _Handler(BaseHTTPRequestHandler):
             return self._error(HTTPStatus.BAD_GATEWAY, str(exc))
         label = broker.CONNECTORS[connector_id]["label"]
         html = (f"<html><body><h2>{label} connected ✓</h2>"
-                "<p>You can close this window and return to Cortana.</p></body></html>")
+                "<p>You can close this window and return to Jade.</p></body></html>")
         self._send(200, html, content_type="text/html")
 
     def _h_connector_token(self, connector_id: str):
@@ -505,7 +505,7 @@ class ThreadedHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
     allow_reuse_address = True
 
 
-class CortanaApp:
+class JadeApp:
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
         problems = cfg.validate()
@@ -513,7 +513,7 @@ class CortanaApp:
             raise SystemExit("configuration error:\n- " + "\n- ".join(problems))
         data_dir = Path(cfg.data_dir)
         data_dir.mkdir(parents=True, exist_ok=True)
-        self.db = Database(data_dir / "cortana-server.db")
+        self.db = Database(data_dir / "jade-server.db")
         self.db.delete_expired_sessions()
         self.db.purge_expired_pairings()
         self.limiter = RateLimiter(cfg.rate_limit_per_minute)
@@ -523,7 +523,7 @@ class CortanaApp:
         self.httpd = ThreadedHTTPServer((self.cfg.host, self.cfg.port), _Handler)
         self.httpd.app = self  # type: ignore[attr-defined]
         # Redacted config only — never log secrets.
-        log.info("cortana-server %s listening on %s:%d", __version__,
+        log.info("jade-server %s listening on %s:%d", __version__,
                  self.cfg.host, self.httpd.server_port)
         log.info("config: %s", self.cfg.redacted())
         try:
@@ -560,7 +560,7 @@ def main() -> None:
 
     logging.getLogger().addFilter(_Scrub())
     cfg = ServerConfig()
-    CortanaApp(cfg).serve()
+    JadeApp(cfg).serve()
 
 
 if __name__ == "__main__":

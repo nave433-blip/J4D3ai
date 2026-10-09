@@ -37,7 +37,7 @@ def _get(server, path, token=None):
     url = f"http://127.0.0.1:{server['port']}{path}"
     if token:
         url += ("&" if "?" in path else "?") + f"token={token}"
-    req = urllib.request.Request(url, headers={"X-Cortana-Token": token} if token and "token=" not in url else {})
+    req = urllib.request.Request(url, headers={"X-Jade-Token": token} if token and "token=" not in url else {})
     # Prefer header auth in one case; query param otherwise. Simplify: use query.
     # 30s client timeout: /api/status does real (bounded) provider probes, and
     # under a full-suite run the loopback request can briefly exceed 5s.
@@ -91,7 +91,7 @@ def test_authenticated_status_ok(server):
 
 def test_header_auth_also_works(server):
     url = f"http://127.0.0.1:{server['port']}/api/commands"
-    req = urllib.request.Request(url, headers={"X-Cortana-Token": server["token"]})
+    req = urllib.request.Request(url, headers={"X-Jade-Token": server["token"]})
     with urllib.request.urlopen(req, timeout=5) as r:
         assert r.status == 200
 
@@ -100,7 +100,7 @@ def test_index_requires_auth_and_serves_html(server):
     code, _ = _get(server, "/")
     assert code == 401
     code, body = _get(server, "/", token=server["token"])
-    assert code == 200 and b"Cortana dashboard" in body
+    assert code == 200 and b"Jade dashboard" in body
 
 
 def test_unknown_route_404(server):

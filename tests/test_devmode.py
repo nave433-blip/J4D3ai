@@ -17,7 +17,7 @@ from core.devmode import (
 
 @pytest.mark.parametrize("val", ["1", "true", "yes", "on", "TRUE", "Yes", " ON "])
 def test_env_truthy_enables(monkeypatch, val):
-    monkeypatch.setenv("CORTANA_DEV_MODE", val)
+    monkeypatch.setenv("JADE_DEV_MODE", val)
     assert is_dev_mode() is True
     # env wins over an explicit off in config
     assert is_dev_mode(config={"dev_mode": False}) is True
@@ -25,28 +25,28 @@ def test_env_truthy_enables(monkeypatch, val):
 
 @pytest.mark.parametrize("val", ["0", "false", "no", "off", "FALSE"])
 def test_env_falsy_disables(monkeypatch, val):
-    monkeypatch.setenv("CORTANA_DEV_MODE", val)
+    monkeypatch.setenv("JADE_DEV_MODE", val)
     assert is_dev_mode() is False
     # env wins over an explicit on in config
     assert is_dev_mode(config={"dev_mode": True}) is False
 
 
 def test_env_unset_falls_back_to_config(monkeypatch):
-    monkeypatch.delenv("CORTANA_DEV_MODE", raising=False)
+    monkeypatch.delenv("JADE_DEV_MODE", raising=False)
     assert is_dev_mode(config={"dev_mode": True}) is True
     assert is_dev_mode(config={"dev_mode": False}) is False
     assert is_dev_mode(config={}) is False
 
 
 def test_env_unrecognized_falls_back_to_config(monkeypatch):
-    monkeypatch.setenv("CORTANA_DEV_MODE", "maybe")
+    monkeypatch.setenv("JADE_DEV_MODE", "maybe")
     assert is_dev_mode(config={"dev_mode": True}) is True
     assert is_dev_mode(config={}) is False
 
 
 def test_legacy_jarvis_dev_mode_fallback(monkeypatch):
     """Deprecated JARVIS_DEV_MODE is still honored."""
-    monkeypatch.delenv("CORTANA_DEV_MODE", raising=False)
+    monkeypatch.delenv("JADE_DEV_MODE", raising=False)
     monkeypatch.setenv("JARVIS_DEV_MODE", "1")
     assert is_dev_mode() is True
 
@@ -54,7 +54,7 @@ def test_legacy_jarvis_dev_mode_fallback(monkeypatch):
 # ---------- personal instructions loader ----------
 
 def _dev_on(monkeypatch):
-    monkeypatch.setenv("CORTANA_DEV_MODE", "1")
+    monkeypatch.setenv("JADE_DEV_MODE", "1")
 
 
 def test_loader_returns_file_contents(monkeypatch, tmp_path):
@@ -68,12 +68,12 @@ def test_loader_returns_file_contents(monkeypatch, tmp_path):
 def test_loader_missing_file_returns_empty(monkeypatch, tmp_path, caplog):
     _dev_on(monkeypatch)
     monkeypatch.setattr(devmode, "DEV_INSTRUCTIONS_PATH", tmp_path / "nope.md")
-    with caplog.at_level(logging.DEBUG, logger="cortana.devmode"):
+    with caplog.at_level(logging.DEBUG, logger="jade.devmode"):
         assert load_dev_instructions() == ""
 
 
 def test_loader_off_ignores_existing_file(monkeypatch, tmp_path):
-    monkeypatch.delenv("CORTANA_DEV_MODE", raising=False)
+    monkeypatch.delenv("JADE_DEV_MODE", raising=False)
     target = tmp_path / "dev_instructions.md"
     target.write_text("should not load", encoding="utf-8")
     monkeypatch.setattr(devmode, "DEV_INSTRUCTIONS_PATH", target)
@@ -88,7 +88,7 @@ def test_loader_never_logs_contents(monkeypatch, tmp_path, caplog):
     target = tmp_path / "dev_instructions.md"
     target.write_text(f"notes containing {secret}", encoding="utf-8")
     monkeypatch.setattr(devmode, "DEV_INSTRUCTIONS_PATH", target)
-    with caplog.at_level(logging.DEBUG, logger="cortana.devmode"):
+    with caplog.at_level(logging.DEBUG, logger="jade.devmode"):
         load_dev_instructions()
     assert secret not in caplog.text
 
@@ -96,7 +96,7 @@ def test_loader_never_logs_contents(monkeypatch, tmp_path, caplog):
 # ---------- effective system prompt ----------
 
 def test_effective_prompt_unchanged_when_off(monkeypatch):
-    monkeypatch.delenv("CORTANA_DEV_MODE", raising=False)
+    monkeypatch.delenv("JADE_DEV_MODE", raising=False)
     monkeypatch.setattr(devmode, "is_dev_mode", lambda config=None: False)
     assert effective_system_prompt("BASE") == "BASE"
 
@@ -128,7 +128,7 @@ def test_banner_shows_when_on(monkeypatch, capsys):
 
 
 def test_banner_hidden_when_off(monkeypatch, capsys):
-    monkeypatch.delenv("CORTANA_DEV_MODE", raising=False)
+    monkeypatch.delenv("JADE_DEV_MODE", raising=False)
     monkeypatch.setattr(devmode, "is_dev_mode", lambda config=None: False)
     assert print_dev_banner() is False
     assert capsys.readouterr().out == ""
@@ -137,7 +137,7 @@ def test_banner_hidden_when_off(monkeypatch, capsys):
 # ---------- timing diagnostics ----------
 
 def test_timed_request_logs_provider_model_elapsed(caplog):
-    with caplog.at_level(logging.DEBUG, logger="cortana.devmode"):
+    with caplog.at_level(logging.DEBUG, logger="jade.devmode"):
         with timed_request("ollama", "ollama/llama3"):
             pass
     assert "provider=ollama" in caplog.text

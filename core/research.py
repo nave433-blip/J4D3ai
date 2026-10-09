@@ -1,4 +1,4 @@
-"""Deep research mode — Perplexity/Grok-style research, Cortana's spin.
+"""Deep research mode — Perplexity/Grok-style research, Jade's spin.
 
 ``/research <topic>`` orchestrates multi-step web research:
 

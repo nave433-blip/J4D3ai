@@ -33,8 +33,8 @@ def query_ollama_cli(prompt: str, model: str = "llama3") -> str:
 
 def query_hive_mind(task: str) -> str:
     """Queries remote P2P nodes for task resolution."""
-    from core.p2p import scan_for_cortana_peers, send_remote_command
-    peers = scan_for_cortana_peers()
+    from core.p2p import scan_for_jade_peers, send_remote_command
+    peers = scan_for_jade_peers()
     for peer in peers:
         res = send_remote_command(peer, "think", {"task": task})
         if res.get("ok"):

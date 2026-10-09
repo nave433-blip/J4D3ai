@@ -2,7 +2,7 @@
 presence merge, pairing, memory sync, guarded optionals.
 
 All network tests run on loopback with ephemeral ports and isolated
-config; nothing touches the real ~/.cortana or the real network.
+config; nothing touches the real ~/.jade or the real network.
 """
 import base64
 import hashlib
@@ -156,7 +156,7 @@ def test_discovery_register_and_peers_protocol_match(isolated_config, tmp_path):
         _use_discovery(tmp_path, port)
         cfg = json.loads((tmp_path / "config.json").read_text())
         cfg["global_p2p_enabled"] = True
-        cfg["cortana_name"] = "ProtoNode"
+        cfg["jade_name"] = "ProtoNode"
         (tmp_path / "config.json").write_text(json.dumps(cfg))
 
         from core.global_p2p import register_node, get_global_peers
@@ -287,7 +287,7 @@ def test_file_transfer_rejects_path_outside_workspace(isolated_config, peer_fact
     _grant(tmp_path, "file_send", "file_fetch")
     _, port = peer_factory()
     res = p2p.p2p_send_file("127.0.0.1", str(tmp_path / "config.json"),
-                            "/etc/cortana-evil.bin", port=port)
+                            "/etc/jade-evil.bin", port=port)
     assert not res["ok"]
     res = p2p.p2p_fetch_file("127.0.0.1", "/etc/hostname",
                              str(tmp_path / "o.bin"), port=port)
@@ -397,7 +397,7 @@ def test_pairing_join_on_lan(isolated_config, peer_factory, tmp_path, monkeypatc
     from core import p2p_pairing as pairing
     _, http_port = peer_factory()
 
-    (tmp_path / "config.json").write_text(json.dumps({"cortana_name": "PairTarget"}))
+    (tmp_path / "config.json").write_text(json.dumps({"jade_name": "PairTarget"}))
     code, info = pairing.make_pairing_code(port=http_port)
     assert info["token_generated"]  # fresh isolated config had no token
 
@@ -550,3 +550,16 @@ def test_cli_registers_new_p2p_commands():
     for expected in ("p2p-discovery", "p2p-pair", "p2p-join", "p2p-message",
                      "p2p-inbox", "p2p-peers", "p2p-sync-memory"):
         assert expected in names, f"missing CLI command: {expected} ({sorted(names)})"
+
+
+# ------------------------------------------------------------ version self-compatibility
+
+def test_current_version_negotiates_full_feature_set():
+    """P2P_VERSION must exist in P2P_FEATURES: two peers on the current
+    version must agree on the full action set (no silent fallback to the
+    0.1.7 minimal set after a version bump)."""
+    from core.p2p import P2P_VERSION, P2P_FEATURES, is_p2p_compatible
+    assert P2P_VERSION in P2P_FEATURES, f"{P2P_VERSION} missing from P2P_FEATURES"
+    for action in ("file_send", "file_fetch", "message", "p2p_sync_memory",
+                   "think", "execute_chunk", "skill_offer"):
+        assert is_p2p_compatible(P2P_VERSION, action), action

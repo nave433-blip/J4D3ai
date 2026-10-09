@@ -9,10 +9,10 @@ from rich.console import Console
 
 console = Console()
 
-# Discovery server URL. There is no hosted CORTANA discovery service;
+# Discovery server URL. There is no hosted JADE discovery service;
 # set "discovery_server_url" in the config to point at your own
-# (see core/p2p_discovery_server.py, or `cortana p2p-discovery`).
-DISCOVERY_SERVER_URL = "https://cortana-discovery-server.example.com"
+# (see core/p2p_discovery_server.py, or `jade p2p-discovery`).
+DISCOVERY_SERVER_URL = "https://jade-discovery-server.example.com"
 
 # Re-register at half the server TTL so a missed heartbeat never drops us.
 HEARTBEAT_INTERVAL = 45
@@ -61,7 +61,7 @@ def register_node():
     payload = {
         "node_id": node_id,
         "endpoint": cfg.get("p2p_public_endpoint"),
-        "name": cfg.get("cortana_name", "Cortana"),
+        "name": cfg.get("jade_name", "Jade"),
         "capabilities": _local_capabilities(),
         "version": CURRENT_VERSION,
     }

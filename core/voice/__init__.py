@@ -1,4 +1,4 @@
-"""Cortana voice subsystem — public API.
+"""Jade voice subsystem — public API.
 
 Stages: wake-word engine -> audio capture -> VAD -> STT -> TTS.
 Every stage is a swappable slot; see :mod:`core.voice.base`.

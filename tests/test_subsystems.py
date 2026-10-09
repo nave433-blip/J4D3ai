@@ -112,10 +112,10 @@ class TestVectorMemory:
         with patch.object(vmod, "_get_embedding", return_value=[0.1] * 4):
             assert vmod.add("hello", metadata="t") is True
         assert vmod._store == ["[t] hello"]
-        assert (tmp_path / ".cortana" / "memory" / "memory_store.pkl").exists()
+        assert (tmp_path / ".jade" / "memory" / "memory_store.pkl").exists()
 
     def test_dim_change_archives_old_index(self, vmod, tmp_path):
-        memdir = tmp_path / ".cortana" / "memory"
+        memdir = tmp_path / ".jade" / "memory"
         with patch.object(vmod, "_get_embedding", return_value=[0.1] * 4):
             assert vmod.add("v1") is True
         assert vmod._index.d == 4
@@ -195,15 +195,15 @@ class TestVoice:
 
     def test_run_voice_uses_tempfile_and_cleans_up(self, voicemod, tmp_path):
         with patch.object(voicemod, "record_to_wav") as rec, \
-             patch.object(voicemod, "transcribe_wav", return_value="hi cortana"), \
+             patch.object(voicemod, "transcribe_wav", return_value="hi jade"), \
              patch.object(voicemod, "debug_loop") as loop:
             voicemod.run_voice()
         path = rec.call_args[0][0]
         assert path != str(tmp_path / "cmd.wav")
-        assert "cortana-voice-" in os.path.basename(path)
+        assert "jade-voice-" in os.path.basename(path)
         assert not os.path.exists(path), "temp wav must be removed"
         assert (tmp_path / "cmd.wav").exists() is False
-        loop.assert_called_once_with("hi cortana")
+        loop.assert_called_once_with("hi jade")
 
     def test_run_voice_handles_no_microphone(self, voicemod, capsys):
         with patch.object(voicemod, "record_to_wav",

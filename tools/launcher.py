@@ -78,7 +78,7 @@ def launch_tool(tool_name):
     console.print(f"[bold cyan]🚀 Launching {tool_name.title()}...[/bold cyan]")
     
     try:
-        # Using Popen to not block the main CORTANA thread.
+        # Using Popen to not block the main JADE thread.
         # argv list (no shell): cmd is a plain binary name from the registry.
         subprocess.Popen([cmd], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return f"Successfully initiated launch for {tool_name}."

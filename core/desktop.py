@@ -1,4 +1,4 @@
-"""Cortana desktop app: chat window, Perplexity-style overlay, global hotkey.
+"""Jade desktop app: chat window, Perplexity-style overlay, global hotkey.
 
 The desktop UI is web tech served by the existing local dashboard HTTP core
 (:mod:`core.dashboard`, stdlib only). The desktop *shell* (native window,
@@ -32,7 +32,7 @@ DEFAULT_HOTKEY = "ctrl+shift+space"
 # ---------------------------------------------------------------------------
 
 OVERLAY_HTML = """<!doctype html><html><head><meta charset="utf-8">
-<title>Cortana overlay</title>
+<title>Jade overlay</title>
 <style>
 :root{color-scheme:dark}
 *{box-sizing:border-box}
@@ -66,8 +66,8 @@ button:hover{background:rgba(88,166,255,.34)}
 .hint{font-size:11px;opacity:.5;padding:0 16px 10px}
 </style></head><body>
 <header>
-  <img id="mark" alt="Cortana">
-  <div class="t">Cortana</div>
+  <img id="mark" alt="Jade">
+  <div class="t">Jade</div>
   <div class="s" id="status">ready</div>
 </header>
 <div id="log"></div>
@@ -96,7 +96,7 @@ async function ask(){
   try{
     const r = await api("/api/chat", {method:"POST",
       headers:{"Content-Type":"application/json"}, body:JSON.stringify({message:m})});
-    say("cortana", "a", r.reply || "(no reply)");
+    say("jade", "a", r.reply || "(no reply)");
   }catch(e){ say("", "a", "chat unavailable: " + e); }
   status.textContent = "ready"; q.focus();
 }
@@ -153,23 +153,23 @@ def _start_dashboard() -> Dict:
 
 
 def _shell_hint(what: str) -> None:
-    print(f"[cortana] {what} needs the desktop shell package: "
+    print(f"[jade] {what} needs the desktop shell package: "
           f"pip install pywebview")
-    print("[cortana] Opening in your browser instead — same app, no native window.")
+    print("[jade] Opening in your browser instead — same app, no native window.")
 
 
 def launch_gui(width: int = 1100, height: int = 760) -> Dict:
-    """Launch the Cortana desktop app (dashboard UI in a native window).
+    """Launch the Jade desktop app (dashboard UI in a native window).
 
     Falls back to the system browser when pywebview is not installed.
     """
     info = _start_dashboard()
     if info.get("error"):
-        print(f"[cortana] Could not start the local UI: {info['error']}")
+        print(f"[jade] Could not start the local UI: {info['error']}")
         return info
     url = info["url"]
-    print(f"[cortana] Desktop UI: {url}")
-    if not _open_native_window(url, "Cortana", width, height):
+    print(f"[jade] Desktop UI: {url}")
+    if not _open_native_window(url, "Jade", width, height):
         _shell_hint("The native window")
         _open_browser(url)
     return info
@@ -181,14 +181,14 @@ def launch_overlay(width: int = 560, height: int = 420,
     ``hotkey`` (default Ctrl+Shift+Space) summons it globally."""
     info = _start_dashboard()
     if info.get("error"):
-        print(f"[cortana] Could not start the local UI: {info['error']}")
+        print(f"[jade] Could not start the local UI: {info['error']}")
         return info
     url = info["url"].replace("/?token=", "/overlay?token=")
-    print(f"[cortana] Overlay: {url}")
-    hk = hotkey or os.environ.get("CORTANA_HOTKEY", DEFAULT_HOTKEY)
+    print(f"[jade] Overlay: {url}")
+    hk = hotkey or os.environ.get("JADE_HOTKEY", DEFAULT_HOTKEY)
 
     def _show():
-        if not _open_native_window(url, "Cortana overlay", width, height):
+        if not _open_native_window(url, "Jade overlay", width, height):
             _shell_hint("The overlay window")
             _open_browser(url)
 
@@ -196,14 +196,14 @@ def launch_overlay(width: int = 560, height: int = 420,
         import keyboard  # optional
         try:
             keyboard.add_hotkey(hk, _show)
-            print(f"[cortana] Global hotkey armed: {hk} (Ctrl+C here quits)")
+            print(f"[jade] Global hotkey armed: {hk} (Ctrl+C here quits)")
             keyboard.wait()
         except Exception as e:
-            print(f"[cortana] Could not arm the global hotkey ({e}). "
+            print(f"[jade] Could not arm the global hotkey ({e}). "
                   f"Showing the overlay once instead.")
             _show()
     except ImportError:
-        print("[cortana] Install the 'keyboard' package for a global hotkey "
+        print("[jade] Install the 'keyboard' package for a global hotkey "
               "(pip install keyboard). Showing the overlay once instead.")
         _show()
     return info
@@ -211,7 +211,7 @@ def launch_overlay(width: int = 560, height: int = 420,
 
 def app_icon_path() -> Optional[Path]:
     """Best available app icon file, or None."""
-    for name in ("jade-mark.png", "cortana-logo.png", "icon.png"):
+    for name in ("jade-mark.png", "jade-logo.png", "icon.png"):
         p = ASSETS_DIR / name
         if p.exists():
             return p

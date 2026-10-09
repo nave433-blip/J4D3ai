@@ -1,11 +1,11 @@
 """Conversation time-travel: branchable conversation trees.
 
-Most assistants give you one linear history. Cortana keeps a tree: every
+Most assistants give you one linear history. Jade keeps a tree: every
 turn is a node with a parent pointer, so you can rewind to any earlier
 point, branch off in a new direction, and diff two branches to see where
 they diverged.
 
-Persisted per session under ~/.cortana/sessions/<id>/tree.json.
+Persisted per session under ~/.jade/sessions/<id>/tree.json.
 Slash commands: /rewind [n] · /branch <name> · /branches · /diff <a> <b>
 """
 
@@ -152,7 +152,7 @@ class ConversationTree:
         """Compact recent turns — used by /handoff to carry context along."""
         lines = []
         for node in self.current_chain()[-n:]:
-            who = "You" if node.get("role") == "user" else "Cortana"
+            who = "You" if node.get("role") == "user" else "Jade"
             lines.append(f"{who}: {node.get('text', '')[:300]}")
         return "\n".join(lines)
 
@@ -180,7 +180,7 @@ class ConversationTree:
             if turns:
                 console.print(f"\n[bold yellow]{label}:[/bold yellow]")
                 for n in turns:
-                    who = "You" if n.get("role") == "user" else "Cortana"
+                    who = "You" if n.get("role") == "user" else "Jade"
                     console.print(f"  [dim]{who}:[/dim] {(n.get('text', '') or '')[:160]}")
 
 

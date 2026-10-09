@@ -1,6 +1,6 @@
 """Shared Google OAuth connect flow for the Google connectors.
 
-Reuses ``~/.cortana/google_client.json`` (the same file
+Reuses ``~/.jade/google_client.json`` (the same file
 :mod:`core.google_auth` uses) so the user configures Google credentials once.
 """
 from __future__ import annotations
@@ -22,7 +22,7 @@ class GoogleConnector(Connector):
 
     def _needs_message(self) -> str:
         return (f"Run `/connector connect {self.id}`. You need Google OAuth "
-                "client credentials in ~/.cortana/google_client.json "
+                "client credentials in ~/.jade/google_client.json "
                 "(same file the /google-login flow uses).")
 
     def connect(self) -> Dict[str, Any]:
@@ -30,7 +30,7 @@ class GoogleConnector(Connector):
         if not secrets:
             console.print("[yellow]Google OAuth client not configured.[/yellow]")
             console.print("Create OAuth client credentials (Desktop app) in the Google Cloud "
-                          "Console and save them to [bold]~/.cortana/google_client.json[/bold].")
+                          "Console and save them to [bold]~/.jade/google_client.json[/bold].")
             cid = console.input("Client ID (or Enter to abort): ").strip()
             if not cid:
                 return {"ok": False, "error": "aborted"}

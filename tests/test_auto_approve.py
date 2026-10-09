@@ -1,7 +1,7 @@
 """Tests for the auto-approve ("allow all") dev toggle.
 
 Auto-approve is an explicit opt-in (config ``"auto_approve": true``,
-``CORTANA_AUTO_APPROVE=1``, or the ``--yes`` CLI flag). It is never on by
+``JADE_AUTO_APPROVE=1``, or the ``--yes`` CLI flag). It is never on by
 default, prints a warning banner at startup, logs every auto-approved action,
 and never covers credential/trust prompts (``sensitive=True``).
 """
@@ -23,7 +23,7 @@ def isolated(tmp_path, monkeypatch):
     """Fake CONFIG_DIR/CONFIG_FILE, clean env, reset session flag."""
     monkeypatch.setattr(config_mod, "CONFIG_DIR", tmp_path)
     monkeypatch.setattr(config_mod, "CONFIG_FILE", tmp_path / "config.json")
-    for var in ("CORTANA_AUTO_APPROVE", "JARVIS_AUTO_APPROVE"):
+    for var in ("JADE_AUTO_APPROVE", "JARVIS_AUTO_APPROVE"):
         monkeypatch.delenv(var, raising=False)
     approvals.set_session_yes(False)
     yield tmp_path
@@ -51,19 +51,19 @@ def test_config_option_explicit_false(isolated):
 
 
 def test_env_var_enables(isolated, monkeypatch):
-    monkeypatch.setenv("CORTANA_AUTO_APPROVE", "1")
+    monkeypatch.setenv("JADE_AUTO_APPROVE", "1")
     assert is_auto_approve() is True
 
 
 def test_env_var_truthy_spellings(isolated, monkeypatch):
     for value in ("1", "true", "yes", "on", "True", "YES"):
-        monkeypatch.setenv("CORTANA_AUTO_APPROVE", value)
+        monkeypatch.setenv("JADE_AUTO_APPROVE", value)
         assert is_auto_approve() is True, value
 
 
 def test_env_var_falsy_does_not_enable(isolated, monkeypatch):
     for value in ("0", "false", "no", "off", ""):
-        monkeypatch.setenv("CORTANA_AUTO_APPROVE", value)
+        monkeypatch.setenv("JADE_AUTO_APPROVE", value)
         assert is_auto_approve() is False, value
 
 
@@ -93,7 +93,7 @@ def test_confirm_asks_when_off(isolated, monkeypatch):
 
 
 def test_confirm_auto_approves_routine(isolated, monkeypatch, capsys):
-    monkeypatch.setenv("CORTANA_AUTO_APPROVE", "1")
+    monkeypatch.setenv("JADE_AUTO_APPROVE", "1")
 
     def _boom(*a, **k):
         raise AssertionError("Confirm.ask must not be called when auto-approving")
@@ -109,7 +109,7 @@ def test_confirm_auto_approves_routine(isolated, monkeypatch, capsys):
 
 
 def test_confirm_sensitive_still_asks(isolated, monkeypatch):
-    monkeypatch.setenv("CORTANA_AUTO_APPROVE", "1")
+    monkeypatch.setenv("JADE_AUTO_APPROVE", "1")
     asked = []
     monkeypatch.setattr(
         approvals.Confirm, "ask",
@@ -135,7 +135,7 @@ def test_confirm_passes_default_through(isolated, monkeypatch):
 # ------------------------------------------------------------------ banner
 
 def test_startup_banner_shown_when_on(isolated, monkeypatch, capsys):
-    monkeypatch.setenv("CORTANA_AUTO_APPROVE", "1")
+    monkeypatch.setenv("JADE_AUTO_APPROVE", "1")
     assert approvals.startup_banner() is True
     assert "AUTO-APPROVE ON" in capsys.readouterr().out
 
@@ -150,7 +150,7 @@ def test_startup_banner_hidden_when_off(isolated, capsys):
 def test_mcp_call_honors_global_auto_approve(isolated, monkeypatch):
     import core.mcp_client as mcp
 
-    monkeypatch.setenv("CORTANA_AUTO_APPROVE", "1")
+    monkeypatch.setenv("JADE_AUTO_APPROVE", "1")
     monkeypatch.setattr(mcp, "get_servers_config", lambda: {"srv": {"command": ["x"]}})
 
     def _boom(*a, **k):
@@ -181,7 +181,7 @@ def test_cli_help_advertises_yes_flag(tmp_path):
     venv_py = os.path.normpath(venv_py)
     if not os.path.exists(venv_py):
         pytest.skip("project venv with typer not present")
-    env = dict(os.environ, CORTANA_SKIP_STARTUP="1", HOME=str(tmp_path))
+    env = dict(os.environ, JADE_SKIP_STARTUP="1", HOME=str(tmp_path))
     r = subprocess.run(
         [venv_py, "cli.py", "--help"],
         capture_output=True, text=True, env=env, timeout=90)

@@ -40,23 +40,23 @@ def transcribe_wav(path):
 
 
 def run_voice():
-    fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="cortana-voice-")
+    fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="jade-voice-")
     os.close(fd)
     try:
         try:
             record_to_wav(wav_path)
         except RuntimeError as e:
-            print(f"CORTANA voice error: {e}")
+            print(f"JADE voice error: {e}")
             return
         try:
             cmd = transcribe_wav(wav_path)
         except sr.UnknownValueError:
-            print("CORTANA could not understand the audio.")
+            print("JADE could not understand the audio.")
             return
         except sr.RequestError as e:
-            print(f"CORTANA voice error: {e} (speech recognition needs an internet connection)")
+            print(f"JADE voice error: {e} (speech recognition needs an internet connection)")
             return
-        print(f"CORTANA heard: {cmd}")
+        print(f"JADE heard: {cmd}")
 
         # Use the debug_loop to allow tool execution
         debug_loop(cmd)

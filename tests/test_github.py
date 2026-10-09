@@ -502,7 +502,7 @@ def test_github_connect_validates_and_stores(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", make_fake_urlopen(captured))
     res = github_connect("ghp_testtoken")
     assert res["ok"] is True
-    assert stored == {"service": "cortana-dev", "account": "cortana-github"}
+    assert stored == {"service": "jade-dev", "account": "jade-github"}
     req = captured["req"]
     assert req.full_url == "https://api.github.com/user"
     assert req.get_header("Authorization") == "Bearer ghp_testtoken"

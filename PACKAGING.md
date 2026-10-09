@@ -1,6 +1,6 @@
 # Packaging & Release Checklist
 
-How CORTANA ships: one-line bash installer, Homebrew formula, pip (PyPI), pipx,
+How JADE ships: one-line bash installer, Homebrew formula, pip (PyPI), pipx,
 and install docs. This file is the runbook — follow it on every release.
 
 ## Version bump
@@ -9,7 +9,7 @@ Single source of truth lives in two files (kept in sync by `tests/test_packaging
 
 1. `pyproject.toml` → `version = "X.Y.Z"`
 2. `setup.py` → `version="X.Y.Z"`
-3. `README.md` title line → `# CORTANA: The Ultimate Proactive AI Assistant (vX.Y.Z)`
+3. `README.md` title line → `# JADE: The Ultimate Proactive AI Assistant (vX.Y.Z)`
 
 ## Tag the release
 
@@ -37,16 +37,16 @@ twine upload dist/*        # paste the API token when asked
 
 # verify (fresh venv):
 python -m venv /tmp/piptest && /tmp/piptest/bin/pip install jarvis-dev
-/tmp/piptest/bin/cortana --help
+/tmp/piptest/bin/jade --help
 ```
 
 Notes:
 - `requires-python = ">=3.12"` — pip will refuse older Pythons with a clear error.
-- The `cortana` console script (`cli:app`) is registered in both
+- The `jade` console script (`cli:app`) is registered in both
   `pyproject.toml` `[project.scripts]` and `setup.py` `entry_points`.
 - Never commit `dist/` or `*.egg-info` churn from a release build.
 
-## Homebrew formula (`cortana.rb`)
+## Homebrew formula (`jade.rb`)
 
 On every release, update the formula **before** announcing:
 
@@ -62,11 +62,11 @@ brew install --formula https://raw.githubusercontent.com/nave433-blip/jarvis-dev
 ```
 
 **Future: proper tap.** Create `nave433-blip/homebrew-tap` with the formula at
-`Formula/cortana.rb`, then users get the short form:
+`Formula/jade.rb`, then users get the short form:
 
 ```bash
 brew tap nave433-blip/tap
-brew install cortana
+brew install jade
 ```
 
 Until the tap exists, do not document the short form anywhere.
@@ -79,7 +79,7 @@ Release:
 curl -fsSL https://raw.githubusercontent.com/nave433-blip/jarvis-dev/main/install.sh | bash
 ```
 
-Testing an unmerged branch (e.g. `audit/fix`) — the script installs `$CORTANA_REF`
+Testing an unmerged branch (e.g. `audit/fix`) — the script installs `$JADE_REF`
 when set, so pin both:
 
 ```bash
@@ -87,7 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/nave433-blip/jarvis-dev/audit/fix/i
 ```
 
 Useful knobs (documented in `install.sh` header):
-`CORTANA_REF`, `CORTANA_DIR`, `CORTANA_SKIP_SYSTEM_DEPS=1`, `CORTANA_SKIP_GLOBAL_LINK=1`.
+`JADE_REF`, `JADE_DIR`, `JADE_SKIP_SYSTEM_DEPS=1`, `JADE_SKIP_GLOBAL_LINK=1`.
 
 ## pipx
 

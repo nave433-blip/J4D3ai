@@ -132,7 +132,7 @@ def test_project_config_roundtrip(tmp_path):
     assert cfg2["sandbox"]["memory_mb"] == 512  # defaults merged back in
     assert cfg2["ignore"] == ["x"]
     # corrupt JSON -> defaults, never raises
-    with open(os.path.join(root, ".cortana", "config.json"), "w") as fh:
+    with open(os.path.join(root, ".jade", "config.json"), "w") as fh:
         fh.write("{not json")
     assert load_project_config(root)["sandbox"]["timeout"] == 30
 
@@ -195,7 +195,7 @@ def test_checkpoint_snapshot_ignores_outside_root(tmp_path):
     outside = os.path.join(os.path.dirname(root), "outside-snap-test.txt")
     _write(root, "in.txt", "in\n")
     snap = cm.snapshot(["in.txt", outside])
-    snap_dir = os.path.join(root, ".cortana", "checkpoints", snap)
+    snap_dir = os.path.join(root, ".jade", "checkpoints", snap)
     walked = []
     for dirpath, _d, filenames in os.walk(snap_dir):
         walked.extend(os.path.relpath(os.path.join(dirpath, f), snap_dir)
@@ -439,7 +439,7 @@ def test_handle_code_command_decline_leaves_files(tmp_path, monkeypatch, capsys)
     assert any("Apply this diff" in c for c in calls)
     assert open(os.path.join(root, "a.txt")).read() == "hello\n"
     # no checkpoint written on decline
-    assert not os.path.isdir(os.path.join(root, ".cortana", "checkpoints"))
+    assert not os.path.isdir(os.path.join(root, ".jade", "checkpoints"))
 
 
 def test_handle_code_command_apply_checkpoints_and_rewinds(

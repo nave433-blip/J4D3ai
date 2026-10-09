@@ -7,7 +7,7 @@ Isolation guarantees (honest version):
 
 * With ``bwrap`` (bubblewrap) installed — the preferred backend:
     - /usr, /bin, /lib, /lib64 are read-only; only the fresh workdir and
-      /tmp are writable; --die-with-parent kills the sandbox with Cortana.
+      /tmp are writable; --die-with-parent kills the sandbox with Jade.
     - ``allow_network=False`` adds ``--unshare-net``: no network at all.
     - RLIMIT_AS / RLIMIT_CPU / RLIMIT_FSIZE / RLIMIT_NPROC bound memory,
       CPU time, file size, and process count.
@@ -207,7 +207,7 @@ def run_sandboxed(command: str, timeout: float = 30, memory_mb: int = 512,
             return SandboxResult(backend="unavailable",
                                  error=f"workdir does not exist: {workdir}")
     else:
-        workdir = tempfile.mkdtemp(prefix="cortana-sandbox-")
+        workdir = tempfile.mkdtemp(prefix="jade-sandbox-")
         made_dir = True
 
     try:

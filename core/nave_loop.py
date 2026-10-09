@@ -109,7 +109,7 @@ def _resolve_agent_model(agent: Agent) -> str:
     """ Maps brain_type to the best available model in config. """
     cfg = load_config()
     if agent.model == "auto":
-        return cfg.get("cortana_model", "llama3")
+        return cfg.get("jade_model", "llama3")
     return agent.model
 
 def _run_agent_call(agent: Agent, input_text: str, online_context: Optional[str] = None) -> Dict:
@@ -211,7 +211,7 @@ def run_nave_loop(query: str, cycles: int = 1) -> Dict:
                  console.print(Panel.fit(
                      "[red]❌ All configured brain providers failed.[/red]\n\n"
 
-                     "CORTANA attempted all configured providers (local and cloud) and none returned a valid response.\n\n"
+                     "JADE attempted all configured providers (local and cloud) and none returned a valid response.\n\n"
                      "What you can do:\n"
                      "- Check network connectivity and provider API keys (OpenAI, Gemini, Anthropic).\n"
                      "- Verify local Ollama is running and reachable at the configured host (config.ollama_host).\n"
@@ -225,7 +225,7 @@ def run_nave_loop(query: str, cycles: int = 1) -> Dict:
             
             integrator_prompt = f"""
 Combine the following agent outputs and internal 'Thinking' processes into a definitive, sovereign solution.
-Ensure maximum technical accuracy, address all criticisms identified by the Critic, and maintain Cortana' Prime Directives.
+Ensure maximum technical accuracy, address all criticisms identified by the Critic, and maintain Jade' Prime Directives.
 
 AGENT OUTPUTS:
 {all_data}

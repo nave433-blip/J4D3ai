@@ -31,7 +31,7 @@ def test_config_keys_all_in_schema_or_legacy(isolated):
     schema_keys = {e["key"] for e in get_schema()}
     legacy_ok = {"provider", "ollama_host", "ollama_hosts", "ollama_cloud_host",
                  "ollama_token", "lm_studio_host", "llama_cpp_host", "gpt4all_host",
-                 "cortana_model", "cortana_name", "auto_approve", "gemini_api_key",
+                 "jade_model", "jade_name", "auto_approve", "gemini_api_key",
                  "anthropic_api_key", "xai_api_key", "openai_api_key", "mistral_api_key",
                  "nvidia_api_key", "deepseek_api_key", "moonshot_api_key",
                  "dropbox_token", "gdrive_token", "github_token", "personality",

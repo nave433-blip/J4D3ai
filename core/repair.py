@@ -11,7 +11,7 @@ console = Console()
 from core.config import load_config
 
 def self_repair_hook(exctype, value, tb):
-    """Global exception hook for CORTANA self-repair and reporting."""
+    """Global exception hook for JADE self-repair and reporting."""
     # To avoid recursion if the repair engine itself fails
     sys.excepthook = sys.__excepthook__
     
@@ -19,7 +19,7 @@ def self_repair_hook(exctype, value, tb):
     auto_repair_enabled = config.get("self_repair", False)
 
     error_msg = "".join(traceback.format_exception(exctype, value, tb))
-    console.print("\n[bold red]⚠️ CORTANA CRITICAL FAILURE DETECTED[/bold red]")
+    console.print("\n[bold red]⚠️ JADE CRITICAL FAILURE DETECTED[/bold red]")
     console.print(Panel(error_msg, title="Traceback", border_style="red"))
     
     # Extract the failing file path
@@ -29,7 +29,7 @@ def self_repair_hook(exctype, value, tb):
     
     console.print(f"\n[bold yellow]Failing Component:[/bold yellow] {failing_file} (Line {line_no})")
     
-    should_repair = auto_repair_enabled or confirm("\nWould you like CORTANA to attempt an autonomous self-repair?")
+    should_repair = auto_repair_enabled or confirm("\nWould you like JADE to attempt an autonomous self-repair?")
     
     if should_repair:
         from core.brain import think
@@ -66,7 +66,7 @@ def self_repair_hook(exctype, value, tb):
                         args = json.loads(lines[i+1].replace("ARGS:", "").strip())
                         res = replace_in_file(args["path"], args["old"], args["new"])
                         console.print(f"[bold green]{res}[/bold green]")
-                        console.print("\n[bold cyan]Please restart CORTANA to verify the fix.[/bold cyan]")
+                        console.print("\n[bold cyan]Please restart JADE to verify the fix.[/bold cyan]")
                         return
                     except Exception as e:
                         console.print(f"[red]Failed to parse repair patch: {e}[/red]")

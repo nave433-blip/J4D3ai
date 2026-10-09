@@ -1,6 +1,6 @@
-"""Cortana reference cloud server.
+"""Jade reference cloud server.
 
-A minimal, honest backend for the local-first Cortana assistant:
+A minimal, honest backend for the local-first Jade assistant:
 accounts, OAuth brokerage for connectors, server-assisted device
 pairing (signaling only), and an OpenAI-compatible chat endpoint.
 

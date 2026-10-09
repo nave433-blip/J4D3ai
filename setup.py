@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="cortana",
-    version="0.2.6",
+    name="jade",
+    version="0.3.0",
     packages=find_packages(exclude=["server", "server.*", "tests", "tests.*"]),
     py_modules=['cli'],
     python_requires=">=3.12",
@@ -18,9 +18,11 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'cortana=cli:app',
-            'cortana-thin=tools.ollama_thin:main',
-            # Deprecated alias: prints a rename notice, then forwards.
+            'jade=cli:app',
+            'jade-thin=tools.ollama_thin:main',
+            # Deprecated aliases: print a rename notice, then forward.
+            'cortana=cli:cortana_shim',
+            'cortana-thin=cli:cortana_thin_shim',
             'jarvis=cli:jarvis_shim',
         ],
     },

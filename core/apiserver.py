@@ -1,6 +1,6 @@
-"""OpenAI-compatible chat-completions server for Cortana — stdlib only.
+"""OpenAI-compatible chat-completions server for Jade — stdlib only.
 
-Exposes Cortana's brain behind the same REST shape as the OpenAI API so any
+Exposes Jade's brain behind the same REST shape as the OpenAI API so any
 OpenAI-compatible client (SDKs, editor plugins, scripts) can talk to it
 without modification:
 
@@ -14,7 +14,7 @@ Endpoints
                    "owned_by": "ollama"}, ...]}
 
     Model ids come from each configured provider's litellm id
-    (``core.hive.resolve_hive_model``), falling back to ``cortana-<provider>``.
+    (``core.hive.resolve_hive_model``), falling back to ``jade-<provider>``.
     If nothing is configured the data list is empty — that is honest,
     not an error.
 
@@ -40,14 +40,14 @@ Endpoints
                       "finish_reason": "stop"}],
          "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}}
 
-    Token usage is reported as zeros: Cortana does not track token
+    Token usage is reported as zeros: Jade does not track token
     accounting, and it would be dishonest to invent numbers.
 
 Auth
 ----
 Every request needs ``Authorization: Bearer <token>``. The token comes from
-the ``CORTANA_API_TOKEN`` environment variable, or is generated per run and
-stored at ``~/.cortana/api_token`` (0600) — mirroring ``core.dashboard``.
+the ``JADE_API_TOKEN`` environment variable, or is generated per run and
+stored at ``~/.jade/api_token`` (0600) — mirroring ``core.dashboard``.
 Tokens are never logged.
 
 Binding
@@ -57,7 +57,7 @@ prints a loud warning and requires explicit opt-in, like the dashboard.
 
 Quick start
 -----------
-    $ CORTANA_API_TOKEN=secret python -m core.apiserver   # (see __main__ below)
+    $ JADE_API_TOKEN=secret python -m core.apiserver   # (see __main__ below)
 
     $ curl -s http://127.0.0.1:18789/v1/models \\
         -H "Authorization: Bearer secret" | python -m json.tool
@@ -65,7 +65,7 @@ Quick start
     $ curl -s http://127.0.0.1:18789/v1/chat/completions \\
         -H "Authorization: Bearer secret" \\
         -H "Content-Type: application/json" \\
-        -d '{"model": "cortana-default",
+        -d '{"model": "jade-default",
              "messages": [{"role": "user", "content": "Say hi in one line."}]}' \\
         | python -m json.tool
 """
@@ -85,7 +85,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core.config import CONFIG_DIR
 
-TOKEN_ENV = "CORTANA_API_TOKEN"
+TOKEN_ENV = "JADE_API_TOKEN"
 TOKEN_FILE = CONFIG_DIR / "api_token"
 
 # Cap request bodies and the assembled prompt so a client can't ask the
@@ -145,7 +145,7 @@ def _model_inventory() -> List[Dict[str, str]]:
 
     Each entry gets the provider's litellm model id (hive mapping or the
     user's configured default); providers without a resolvable id get
-    ``cortana-<provider>``. Failures produce an empty list, never a lie.
+    ``jade-<provider>``. Failures produce an empty list, never a lie.
     """
     try:
         from core.auth import AuthManager
@@ -169,7 +169,7 @@ def _model_inventory() -> List[Dict[str, str]]:
         except Exception:
             model_id = None
         if not model_id:
-            model_id = f"cortana-{provider}"
+            model_id = f"jade-{provider}"
         entries.append({"id": model_id, "object": "model",
                         "owned_by": provider})
     return entries
@@ -201,7 +201,7 @@ def _map_requested_model(requested: Optional[str]) -> Optional[str]:
 
 class _Handler(http.server.BaseHTTPRequestHandler):
     token: str = ""
-    server_version = "CortanaAPI/1.0"
+    server_version = "JadeAPI/1.0"
 
     def log_message(self, *a):  # keep quiet; never log tokens
         pass
@@ -299,12 +299,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             self._error(f"brain error: {err_msg}", 502, "api_error")
             return
         text = str(result.get("text", ""))
-        # Token usage is not tracked by Cortana — zeros are honest placeholders.
+        # Token usage is not tracked by Jade — zeros are honest placeholders.
         self._json({
             "id": "chatcmpl-" + secrets.token_hex(12),
             "object": "chat.completion",
             "created": int(time.time()),
-            "model": requested_model if requested_model else "cortana-default",
+            "model": requested_model if requested_model else "jade-default",
             "choices": [{
                 "index": 0,
                 "message": {"role": "assistant", "content": text},
@@ -339,18 +339,18 @@ def run_api_server(port: int = 0, bind_lan: bool = False):
     token = _get_token()
     host = "0.0.0.0" if bind_lan else "127.0.0.1"
     if bind_lan:
-        print("⚠️  WARNING: Cortana API server bound to ALL interfaces (LAN). "
+        print("⚠️  WARNING: Jade API server bound to ALL interfaces (LAN). "
               "Anyone on your network with the bearer token can use your AI.")
     server, err = _bind_server(host, port, token)
     if server is None:
         raise OSError(err)
     actual_port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True,
-                              name="cortana-apiserver")
+                              name="jade-apiserver")
     thread.start()
     url = f"http://127.0.0.1:{actual_port}"
-    print(f"🤖 Cortana API server: {url}  (token: {TOKEN_ENV} env var "
-          f"or ~/.cortana/api_token)")
+    print(f"🤖 Jade API server: {url}  (token: {TOKEN_ENV} env var "
+          f"or ~/.jade/api_token)")
     return server, thread, url, token
 
 
@@ -364,7 +364,7 @@ def start_api_background(port: int = 0, bind_lan: bool = False) -> Dict[str, Any
     token = _get_token()
     host = "0.0.0.0" if bind_lan else "127.0.0.1"
     if bind_lan:
-        print("⚠️  WARNING: Cortana API server bound to ALL interfaces (LAN). "
+        print("⚠️  WARNING: Jade API server bound to ALL interfaces (LAN). "
               "Anyone on your network with the bearer token can use your AI.")
     server, err = _bind_server(host, port, token)
     if server is None:
@@ -372,7 +372,7 @@ def start_api_background(port: int = 0, bind_lan: bool = False) -> Dict[str, Any
                 "stop": lambda: None, "error": err}
     actual_port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True,
-                              name="cortana-apiserver")
+                              name="jade-apiserver")
     thread.start()
 
     def _stop():
@@ -386,7 +386,7 @@ def start_api_background(port: int = 0, bind_lan: bool = False) -> Dict[str, Any
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Cortana OpenAI-compatible API server")
+    parser = argparse.ArgumentParser(description="Jade OpenAI-compatible API server")
     parser.add_argument("--port", type=int, default=18789)
     parser.add_argument("--bind-lan", action="store_true",
                         help="bind 0.0.0.0 (warning: exposes the API to your LAN)")

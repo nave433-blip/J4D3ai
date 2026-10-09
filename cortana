@@ -1,4 +1,4 @@
 #!/bin/bash
-# Deprecated launcher: Cortana was renamed to JADE AI (J4D3).
-echo "Note: Cortana has been renamed to Jade (J4D3). Please use ./jade going forward." >&2
+# Deprecated launcher: Jade was renamed to JADE AI (J4D3).
+echo "Note: Jade has been renamed to Jade (J4D3). Please use ./jade going forward." >&2
 exec "$(dirname "$0")/jade" "$@"

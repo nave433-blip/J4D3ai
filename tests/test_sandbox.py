@@ -31,7 +31,7 @@ def test_fallback_runs_command_with_limits():
 def test_fresh_workdir_each_run_and_cleaned_up():
     r = run_sandboxed("pwd", backend="subprocess", keep_workdir=True)
     try:
-        assert "cortana-sandbox-" in r.stdout
+        assert "jade-sandbox-" in r.stdout
         assert os.path.isdir(r.workdir)
     finally:
         shutil.rmtree(r.workdir, ignore_errors=True)
@@ -58,13 +58,13 @@ def test_memory_limit_kills_hog():
 
 @needs_linux
 def test_environment_is_scrubbed():
-    os.environ["CORTANA_TEST_SECRET_MARKER"] = "s3cret"
+    os.environ["JADE_TEST_SECRET_MARKER"] = "s3cret"
     try:
         r = run_sandboxed("env", backend="subprocess")
     finally:
-        del os.environ["CORTANA_TEST_SECRET_MARKER"]
+        del os.environ["JADE_TEST_SECRET_MARKER"]
     assert r.exit_code == 0
-    assert "CORTANA_TEST_SECRET_MARKER" not in r.stdout
+    assert "JADE_TEST_SECRET_MARKER" not in r.stdout
     assert "s3cret" not in r.stdout
 
 

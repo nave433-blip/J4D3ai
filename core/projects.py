@@ -1,7 +1,7 @@
 """Projects (Claude/ChatGPT-style): named workspaces grouping chats,
 attached files/folders, custom instructions and scoped memory.
 
-Stored under ``~/.cortana/projects/<slug>/``::
+Stored under ``~/.jade/projects/<slug>/``::
 
     project.json      # name, instructions, attachments, created
     chats/<ts>.jsonl  # appended chat turns while the project is open
@@ -232,7 +232,7 @@ def inject_into_system_prompt(base_prompt: str, slug: Optional[str] = None) -> s
 
 
 def projects_table() -> Table:
-    table = Table(title="Cortana Projects", border_style="cyan")
+    table = Table(title="Jade Projects", border_style="cyan")
     table.add_column("Slug", style="cyan", no_wrap=True)
     table.add_column("Name", style="white")
     table.add_column("Active", style="green")

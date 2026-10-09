@@ -85,4 +85,4 @@ def test_recent_context(tree):
     tree.note_turn("user", "context q")
     tree.note_turn("assistant", "context a")
     ctx = tree.recent_context(10)
-    assert "You: context q" in ctx and "Cortana: context a" in ctx
+    assert "You: context q" in ctx and "Jade: context a" in ctx

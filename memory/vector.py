@@ -9,10 +9,10 @@ from core.config import get_env_with_config
 
 OLLAMA_HOST = get_env_with_config("ollama_host") or "http://localhost:11434"
 OLLAMA_EMBED_URL = f"{OLLAMA_HOST}/api/embeddings"
-MODEL = get_env_with_config("cortana_model") or "llama3"
+MODEL = get_env_with_config("jade_model") or "llama3"
 
 # Memory lives under the (possibly migrated) home config dir.
-MEMORY_DIR = Path.home() / ".cortana" / "memory"
+MEMORY_DIR = Path.home() / ".jade" / "memory"
 DB_PATH = MEMORY_DIR / "memory_store.pkl"
 INDEX_PATH = MEMORY_DIR / "memory.index"
 

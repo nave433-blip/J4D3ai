@@ -1,4 +1,4 @@
-"""P2P skill sharing: package a Cortana skill/prompt-pack, share it with a
+"""P2P skill sharing: package a Jade skill/prompt-pack, share it with a
 peer, verify it, and install it — with the paranoia such a feature needs.
 
 Security model (non-negotiable):
@@ -89,7 +89,7 @@ def pack_skill(skill_dir: str, out_path: Optional[str] = None) -> Tuple[str, Dic
             files[rel] = _sha256_bytes(data)
             zf.writestr(rel, data)
     manifest = {
-        "format": "cortana-skill/1",
+        "format": "jade-skill/1",
         "name": meta["name"], "version": meta["version"],
         "description": meta.get("description", ""),
         "author": meta.get("author", "unknown"),
@@ -102,7 +102,7 @@ def pack_skill(skill_dir: str, out_path: Optional[str] = None) -> Tuple[str, Dic
     if len(pack_bytes) > MAX_PACK_BYTES:
         raise ValueError(f"pack is {len(pack_bytes)} bytes — over the {MAX_PACK_BYTES} cap")
     manifest["pack_sha256"] = _sha256_bytes(pack_bytes)
-    dest = Path(out_path).expanduser() if out_path else Path(f"{meta['name']}-{meta['version']}.cortana-skill.zip")
+    dest = Path(out_path).expanduser() if out_path else Path(f"{meta['name']}-{meta['version']}.jade-skill.zip")
     dest.write_bytes(pack_bytes)
     (dest.with_suffix(".json")).write_text(json.dumps(manifest, indent=2))
     return str(dest), manifest
@@ -118,7 +118,7 @@ def verify_pack(zip_path: str) -> Dict[str, Any]:
         zf = zipfile.ZipFile(io.BytesIO(data))
         names = zf.namelist()
         if "skill.json" not in names:
-            return {"ok": False, "error": "not a Cortana skill pack (no skill.json)"}
+            return {"ok": False, "error": "not a Jade skill pack (no skill.json)"}
         meta = json.loads(zf.read("skill.json"))
     except Exception as e:
         return {"ok": False, "error": f"unreadable zip: {e}"}
@@ -207,7 +207,7 @@ def install_skill(zip_path: str, auto_yes: bool = False) -> Dict[str, Any]:
     with zipfile.ZipFile(Path(zip_path).expanduser()) as zf:
         zf.extractall(dest)
     console.print(f"[green]✅ Installed to {dest}[/green]")
-    console.print("[dim]Note: skill scripts always run inside the Cortana sandbox.[/dim]")
+    console.print("[dim]Note: skill scripts always run inside the Jade sandbox.[/dim]")
     return {"ok": True, "path": str(dest)}
 
 
@@ -312,7 +312,7 @@ def handle_skill_offer(peer_ip: str, payload: Dict[str, Any]) -> Tuple[int, str,
     if _sha256_bytes(data) != manifest.get("pack_sha256", ""):
         return 400, "text/plain", "pack hash mismatch - refused".encode()
     name = "".join(c for c in str(manifest.get("name", "skill")) if c.isalnum() or c in "-_") or "skill"
-    dest = _incoming_dir() / f"{name}-{int(time.time())}.cortana-skill.zip"
+    dest = _incoming_dir() / f"{name}-{int(time.time())}.jade-skill.zip"
     dest.write_bytes(data)
     (dest.with_suffix(".json")).write_text(json.dumps(manifest, indent=2))
     console.print(Panel(

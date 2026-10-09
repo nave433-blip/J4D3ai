@@ -1,12 +1,12 @@
-"""Self-hostable rendezvous (discovery) server for Cortana global P2P.
+"""Self-hostable rendezvous (discovery) server for Jade global P2P.
 
 This is the server that :mod:`core.global_p2p` talks to. There is no hosted
-Cortana discovery service — run this yourself on any machine reachable by
+Jade discovery service — run this yourself on any machine reachable by
 your nodes (a VPS, a home server, a Raspberry Pi) and point each node's
 ``discovery_server_url`` config at it::
 
-    cortana p2p-discovery --port 11437
-    # on each node, in ~/.cortana/config.json:
+    jade p2p-discovery --port 11437
+    # on each node, in ~/.jade/config.json:
     #   "global_p2p_enabled": true,
     #   "discovery_server_url": "http://your-server:11437"
 
@@ -99,7 +99,7 @@ class DiscoveryRegistry:
         record = {
             "node_id": node_id,
             "endpoint": endpoint,
-            "name": name or "Cortana",
+            "name": name or "Jade",
             "capabilities": capabilities or {},
             "version": version or "unknown",
             "last_seen": time.time(),
@@ -150,7 +150,7 @@ class DiscoveryRegistry:
 
 
 class DiscoveryHandler(http.server.BaseHTTPRequestHandler):
-    server_version = "CortanaDiscovery/1.0"
+    server_version = "JadeDiscovery/1.0"
 
     @property
     def _registry(self) -> DiscoveryRegistry:
@@ -245,7 +245,7 @@ def run_discovery_server(port=DISCOVERY_DEFAULT_PORT, ttl=PEER_TTL_SECONDS,
                                   persist_path=persist_path)
     httpd.registry.start_sweeper()
     bound = httpd.server_address[1]
-    print(f"Cortana discovery server on port {bound} "
+    print(f"Jade discovery server on port {bound} "
           f"(TTL {httpd.registry.ttl}s"
           f"{', secret protected' if secret else ', open registration'}"
           f"{', persisting to ' + str(persist_path) if persist_path else ''})")

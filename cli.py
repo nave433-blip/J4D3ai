@@ -30,11 +30,11 @@ from core.update import auto_update_check, CURRENT_VERSION
 def run_startup_checks() -> None:
     """Heavy startup side effects: only run for real CLI invocations.
 
-    Skipped when CORTANA_SKIP_STARTUP=1 (tests, library use) so that merely
+    Skipped when JADE_SKIP_STARTUP=1 (tests, library use) so that merely
     importing this module never pip-installs packages, hits the network,
     or prompts for input.
     """
-    if os.environ.get("CORTANA_SKIP_STARTUP") == "1":
+    if os.environ.get("JADE_SKIP_STARTUP") == "1":
         return
     ensure_all()
     init_repair_engine()
@@ -84,7 +84,7 @@ _welcome_shown = False
 
 def _show_welcome_once() -> None:
     """Welcome-first startup: splash and dev banner print exactly once,
-    before any setup wizard, so first-run users see CORTANA before questions."""
+    before any setup wizard, so first-run users see JADE before questions."""
     global _welcome_shown
     if not _welcome_shown:
         display_welcome()
@@ -92,7 +92,7 @@ def _show_welcome_once() -> None:
         _welcome_shown = True
 
 
-app = typer.Typer(help="🚀 CORTANA: The Ultimate Local AI Coding Assistant", add_completion=False)
+app = typer.Typer(help="🚀 JADE: The Ultimate Local AI Coding Assistant", add_completion=False)
 console = Console()
 
 @app.callback(invoke_without_command=True)
@@ -100,9 +100,9 @@ def main(ctx: typer.Context,
          debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
          skip_startup: bool = typer.Option(False, "--skip-startup", help="Skip dependency/update startup checks"),
          yes: bool = typer.Option(False, "--yes", "-y", help="Auto-approve confirmation prompts (dev only; credential/trust prompts still ask)")):
-    """CORTANA: Your local AI engineer."""
+    """JADE: Your local AI engineer."""
     if skip_startup:
-        os.environ["CORTANA_SKIP_STARTUP"] = "1"
+        os.environ["JADE_SKIP_STARTUP"] = "1"
     if yes:
         approvals.set_session_yes(True)
     approvals.startup_banner()
@@ -129,7 +129,7 @@ def main(ctx: typer.Context,
             setup_wizard()
         try:
             from core.scheduler import maybe_start_scheduler
-            maybe_start_scheduler()  # background thread; jobs persist in ~/.cortana/
+            maybe_start_scheduler()  # background thread; jobs persist in ~/.jade/
         except Exception:
             pass
         interactive()
@@ -201,7 +201,7 @@ def multibrain(task: Annotated[str, typer.Argument(help="The task or query to re
     from core.brain import multibrain_think
     res = multibrain_think(task)
     if res.get("ok"):
-        display_chat_message("CORTANA", res.get("text"))
+        display_chat_message("JADE", res.get("text"))
     else:
         console.print(f"[red]Error: {res.get('error')}[/red]")
 
@@ -214,7 +214,7 @@ def get_bottom_toolbar():
     try:
         cwd = os.getcwd()
         config = load_config()
-        model = config.get("cortana_model", "unknown")
+        model = config.get("jade_model", "unknown")
         provider = config.get("provider", "ollama")
         return HTML(f'<style fg="cyan">📁 {cwd}</style> | <style fg="magenta">🧠 {provider.upper()} ({model})</style>')
     except Exception:
@@ -222,9 +222,9 @@ def get_bottom_toolbar():
 
 @app.command()
 def menu():
-    """Launch the high-fidelity CORTANA Dashboard Menu."""
+    """Launch the high-fidelity JADE Dashboard Menu."""
     console.clear()
-    header = Panel(Markdown(f"# CORTANA SYSTEM INTERFACE\nVersion: `{CURRENT_VERSION}`"), style="bold cyan", border_style="cyan")
+    header = Panel(Markdown(f"# JADE SYSTEM INTERFACE\nVersion: `{CURRENT_VERSION}`"), style="bold cyan", border_style="cyan")
     console.print(header)
     console.print(get_menu_grid())
     footer = Panel("[bold white]Settings:[/bold white] /config  [bold white]Accounts:[/bold white] /connect /connections", border_style="dim")
@@ -271,10 +271,10 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
         
     # Failure case — human-friendly. Raw provider errors stay hidden unless
     # the user is debugging (dev mode / --debug).
-    debug = os.environ.get("CORTANA_DEV_MODE") in ("1", "true", "yes", "on") or is_dev_mode()
+    debug = os.environ.get("JADE_DEV_MODE") in ("1", "true", "yes", "on") or is_dev_mode()
     why = res.get("error", "no provider could answer")
     next_steps = "Run /connect to link a provider, /connections --test to check them, or /models to switch."
-    console.print(ui_error("No answer", "CORTANA could not get an answer from any provider.",
+    console.print(ui_error("No answer", "JADE could not get an answer from any provider.",
                            why=why if debug else "", next_steps=next_steps))
 
     # Show short history only when debugging
@@ -304,10 +304,10 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
 def interactive():
     """Launch the main interactive Gemini-style prompt."""
     from core.config import verify_and_fix_local_llm
-    # CORTANA_SKIP_STARTUP=1 (tests, CI, piped use) also skips interactive()'s
+    # JADE_SKIP_STARTUP=1 (tests, CI, piped use) also skips interactive()'s
     # own startup routines so piped stdin reaches the REPL instead of being
     # eaten by setup prompts. Real interactive use is unchanged.
-    skip_startup = os.environ.get("CORTANA_SKIP_STARTUP") == "1"
+    skip_startup = os.environ.get("JADE_SKIP_STARTUP") == "1"
     try:
         _show_welcome_once()
         if not skip_startup:
@@ -315,7 +315,7 @@ def interactive():
             auto_check_on_launch()
             startup_check_and_login(auto=False)
     except (EOFError, KeyboardInterrupt):
-        # Startup prompts need a TTY. With piped/closed stdin (CI, `echo | cortana`)
+        # Startup prompts need a TTY. With piped/closed stdin (CI, `echo | jade`)
         # or Ctrl+C during startup, exit cleanly instead of tracebacking.
         # Interactive TTY behavior is unchanged.
         console.print("\n[yellow]Startup input unavailable — exiting.[/yellow]")
@@ -343,7 +343,7 @@ def interactive():
 
     while True:
         try:
-            text = session.prompt('CORTANA > ', style=style).strip()
+            text = session.prompt('JADE > ', style=style).strip()
             last_ctrl_c = 0 
             if not text: continue
             if text in ["/exit", "exit", "quit"]:
@@ -665,7 +665,7 @@ def interactive():
                         else:
                             console.print("[red]Usage: /signin [in|out <provider>|status] (empty opens the menu)[/red]")
                     elif cmd == "/account":
-                        from core import cortana_account as _ca
+                        from core import jade_account as _ca
                         _ca.account_menu()
                     elif cmd == "/cloud": menus.cloud_menu()
                     elif cmd == "/connect": menus.connect_menu()
@@ -782,7 +782,7 @@ def _timetravel_cb(role, text):
 
 def ollama_cli(args: str):
     """Managed Ollama subcommands (/ollama ps|list|prune|stats|…) + raw passthrough."""
-    # Cortana-managed subcommands first; anything else falls through to the
+    # Jade-managed subcommands first; anything else falls through to the
     # raw `ollama` binary below. `handle_ollama_args("")` shows managed help.
     from core.ollama_mgmt import handle_ollama_args
     if handle_ollama_args(args or ""):
@@ -835,24 +835,24 @@ def setup(): setup_wizard()
 
 @app.command()
 def p2p_scan():
-    """Scan local network for other CORTANA instances."""
-    from core.p2p import scan_for_cortana_peers
-    console.print("[cyan]Searching for CORTANA peers on local network...[/cyan]")
-    peers = scan_for_cortana_peers()
+    """Scan local network for other JADE instances."""
+    from core.p2p import scan_for_jade_peers
+    console.print("[cyan]Searching for JADE peers on local network...[/cyan]")
+    peers = scan_for_jade_peers()
     if not peers:
-        console.print("[yellow]No other CORTANA instances found.[/yellow]")
+        console.print("[yellow]No other JADE instances found.[/yellow]")
     else:
-        console.print(f"[green]Found CORTANA peers at: {', '.join(peers)}[/green]")
+        console.print(f"[green]Found JADE peers at: {', '.join(peers)}[/green]")
 
 @app.command()
 def p2p_status():
-    """Scan and display a detailed report of all CORTANA peers on the network."""
+    """Scan and display a detailed report of all JADE peers on the network."""
     from core.p2p import p2p_status_report
     p2p_status_report()
 
 @app.command()
 def p2p_edit(peer_ip: str, path: str, old_string: str, new_string: str):
-    """Request to edit a file on a remote CORTANA instance."""
+    """Request to edit a file on a remote JADE instance."""
     from core.p2p import send_remote_command
     console.print(f"[cyan]Requesting to edit '{path}' on {peer_ip}...[/cyan]")
     res = send_remote_command(peer_ip, "edit_file", {"path": path, "old_string": old_string, "new_string": new_string})
@@ -872,7 +872,7 @@ def p2p_set_token(token: str):
 
 @app.command()
 def p2p_read(peer_ip: str, path: str):
-    """Request to read a file from a remote CORTANA instance."""
+    """Request to read a file from a remote JADE instance."""
     from core.p2p import send_remote_command
     console.print(f"[cyan]Requesting to read '{path}' from {peer_ip}...[/cyan]")
     res = send_remote_command(peer_ip, "read_file", {"path": path})
@@ -905,7 +905,7 @@ def p2p_discovery(port: int = typer.Option(11437, "--port", help="TCP port to li
 
 @app.command()
 def p2p_pair():
-    """Print a pairing code so another Cortana on your LAN can join you."""
+    """Print a pairing code so another Jade on your LAN can join you."""
     from core.p2p_pairing import make_pairing_code, render_pairing_qr
     code, info = make_pairing_code()
     if info["token_generated"]:
@@ -913,7 +913,7 @@ def p2p_pair():
     console.print(f"\n[bold cyan]Pairing code for '{info['name']}'[/bold cyan] "
                   f"(token fingerprint [dim]{info['token_fingerprint']}[/dim], LAN endpoint {info['endpoint']}):")
     console.print(f"\n[bold green]{code}[/bold green]\n")
-    console.print("On the other machine, run: [bold]cortana p2p-join <code>[/bold]")
+    console.print("On the other machine, run: [bold]jade p2p-join <code>[/bold]")
     qr = render_pairing_qr(code)
     if qr:
         console.print("[dim]Or scan:[/dim]")
@@ -922,7 +922,7 @@ def p2p_pair():
         console.print("[dim](Install the 'qrcode' package to also show a scannable QR code.)[/dim]")
 
 @app.command()
-def p2p_join(code: str = typer.Argument(..., help="Pairing code from 'cortana p2p-pair'"),
+def p2p_join(code: str = typer.Argument(..., help="Pairing code from 'jade p2p-pair'"),
              yes: bool = typer.Option(False, "--yes", help="Replace existing P2P token without asking")):
     """Join a peer using its pairing code (LAN discovery; see p2p-pair)."""
     from core.p2p_pairing import join_pairing
@@ -972,9 +972,9 @@ def p2p_peers_cmd():
     from rich.table import Table
     peers = p2p_peers()
     if not peers:
-        console.print("[yellow]No peers seen. (Start 'cortana p2p-server' on another machine, or configure a discovery server.)[/yellow]")
+        console.print("[yellow]No peers seen. (Start 'jade p2p-server' on another machine, or configure a discovery server.)[/yellow]")
         return
-    table = Table(title="CORTANA P2P Presence", border_style="cyan")
+    table = Table(title="JADE P2P Presence", border_style="cyan")
     table.add_column("Node"); table.add_column("Name"); table.add_column("Version")
     table.add_column("Sources"); table.add_column("Endpoint"); table.add_column("Last seen")
     import datetime
@@ -1018,17 +1018,17 @@ def p2p_sync_memory_cmd(peer_ip: str = typer.Argument(..., help="Peer IP address
 
 @app.command()
 def restart():
-    console.print("[yellow]🔄 Restarting CORTANA...[/yellow]")
+    console.print("[yellow]🔄 Restarting JADE...[/yellow]")
     os.execv(sys.executable, ['python3'] + sys.argv)
 
 @app.command()
 def reinstall():
-    """Perform a clean sovereign reinstallation of the CORTANA ecosystem."""
+    """Perform a clean sovereign reinstallation of the JADE ecosystem."""
     if confirm("[bold red]⚠️ DANGER: This will wipe your local installation and start fresh. Proceed?[/bold red]"):
         console.print("[bold yellow]🚀 Initiating Sovereign Reinstallation...[/bold yellow]")
         base_dir = os.path.dirname(os.path.abspath(__file__))
         os.system(f"cd {base_dir} && bash install.sh")
-        console.print("[bold green]✅ Reinstallation complete. Please restart CORTANA.[/bold green]")
+        console.print("[bold green]✅ Reinstallation complete. Please restart JADE.[/bold green]")
         sys.exit(0)
 
 @app.command()
@@ -1153,7 +1153,7 @@ def dashboard(port: int = typer.Option(0, "--port", help="Port to serve (0 = ran
 @app.command(name="api")
 def api_server(port: int = typer.Option(0, "--port", help="Port to serve (0 = random free port)"),
                lan: bool = typer.Option(False, "--lan", help="Bind all interfaces (LAN). Prints a warning.")):
-    """OpenAI-compatible API server: point Copilot-style clients at Cortana."""
+    """OpenAI-compatible API server: point Copilot-style clients at Jade."""
     from core.apiserver import run_api_server
     server, thread, url, token = run_api_server(port=port, bind_lan=lan)
     console.print(f"[green]Serving OpenAI-compatible API at {url}[/green] — press Ctrl+C to stop.")
@@ -1198,8 +1198,8 @@ def set_personality(name: str):
 
 
 @app.command(name="personality")
-def personality_cmd(name: str = typer.Argument(None, help="Personality name (cortana, witty, clippy, professional). Omit for the picker.")):
-    """Set or pick Cortana's personality."""
+def personality_cmd(name: str = typer.Argument(None, help="Personality name (jade, witty, clippy, professional). Omit for the picker.")):
+    """Set or pick Jade's personality."""
     if name:
         set_personality(name)
     else:
@@ -1239,7 +1239,7 @@ def set_voice_profile(name: str):
 
 @app.command(name="voice-profile")
 def voice_profile_cmd(name: str = typer.Argument(None, help="Voice profile name. Omit for the picker.")):
-    """Set or pick Cortana's TTS voice profile."""
+    """Set or pick Jade's TTS voice profile."""
     if name:
         set_voice_profile(name)
     else:
@@ -1248,34 +1248,34 @@ def voice_profile_cmd(name: str = typer.Argument(None, help="Voice profile name.
 
 @app.command()
 def gui():
-    """Launch the Cortana desktop app (chat window + overlay + tray)."""
+    """Launch the Jade desktop app (chat window + overlay + tray)."""
     from core.desktop import launch_gui
     launch_gui()
 
 
 @app.command()
 def overlay():
-    """Launch the floating Cortana overlay (summon with the global hotkey)."""
+    """Launch the floating Jade overlay (summon with the global hotkey)."""
     from core.desktop import launch_overlay
     launch_overlay()
 
 
 @app.command()
 def tray():
-    """Run the Cortana system-tray / menu-bar / panel icon."""
+    """Run the Jade system-tray / menu-bar / panel icon."""
     from core.tray import run_tray
     run_tray()
 
 
 @app.command(name="voice-wake")
-def voice_wake(state: str = typer.Argument(None, help="'on' to listen for 'Hey Cortana', 'off' to disable.")):
-    """Opt-in 'Hey Cortana' wake-word listener (summons the overlay)."""
+def voice_wake(state: str = typer.Argument(None, help="'on' to listen for 'Hey Jade', 'off' to disable.")):
+    """Opt-in 'Hey Jade' wake-word listener (summons the overlay)."""
     from core.voice import wakeword as ww
     from core.config import load_config, save_config
     if state is None or state.strip().lower() not in ("on", "off"):
         cfg = load_config()
         cur = "on" if cfg.get("wakeword_enabled") else "off"
-        console.print(f"[dim]Wake-word listening is {cur}. Usage: cortana voice-wake [on|off][/dim]")
+        console.print(f"[dim]Wake-word listening is {cur}. Usage: jade voice-wake [on|off][/dim]")
         console.print(f"[dim]{ww.WAKEWORD_NOTICE}[/dim]")
         return
     if state.strip().lower() == "off":
@@ -1286,7 +1286,7 @@ def voice_wake(state: str = typer.Argument(None, help="'on' to listen for 'Hey C
         return
     if not ww.notice_acknowledged():
         console.print(f"[yellow]Privacy notice:[/yellow] {ww.WAKEWORD_NOTICE}")
-        if not Confirm.ask("Enable 'Hey Cortana' wake-word listening?", default=False):
+        if not Confirm.ask("Enable 'Hey Jade' wake-word listening?", default=False):
             console.print("[dim]Wake-word listening stays off.[/dim]")
             return
         ww.acknowledge_notice()
@@ -1414,7 +1414,7 @@ def patch_py(path: str, instruction: str = ""):
 def init():
     if os.path.exists("JARVIS.md"): console.print("[yellow]Exists.[/yellow]")
     else:
-        with open("JARVIS.md", "w") as f: f.write("# CORTANA Rules")
+        with open("JARVIS.md", "w") as f: f.write("# JADE Rules")
         console.print("[green]Created.[/green]")
 
 def show_model_status():
@@ -1483,7 +1483,7 @@ def models_command(name: Optional[str] = None):
             return
         
         # Support for -cloud suffix logic
-        config["cortana_model"] = name
+        config["jade_model"] = name
         save_config(config)
         
         if name.endswith("-cloud"):
@@ -1525,7 +1525,7 @@ def models_command(name: Optional[str] = None):
         choice = Prompt.ask("Choice", choices=[str(i+1) for i in range(len(options))] + ["b"], default="1")
         if choice != "b":
             selected = options[int(choice)-1]
-            config["cortana_model"] = selected
+            config["jade_model"] = selected
             save_config(config)
             console.print(f"[green]✅ Now using {selected}[/green]")
             
@@ -1606,26 +1606,26 @@ def settings(action: str = typer.Argument("list", help="list|get|set|reset|expor
              key: Optional[str] = typer.Argument(None, help="Setting key"),
              value: Optional[str] = typer.Argument(None, help="New value"),
              category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category")):
-    """Manage Cortana's typed settings."""
+    """Manage Jade's typed settings."""
     from core.settings import settings_table, get_setting, set_setting, reset_setting, export_settings
     import json as _json
     if action == "list":
         console.print(settings_table(category))
     elif action == "get":
         if not key:
-            console.print("[red]Usage: cortana settings get <key>[/red]"); return
+            console.print("[red]Usage: jade settings get <key>[/red]"); return
         try:
             console.print(f"{key} = {get_setting(key)!r}")
         except KeyError as e:
             console.print(f"[red]❌ {e}[/red]")
     elif action == "set":
         if not key or value is None:
-            console.print("[red]Usage: cortana settings set <key> <value>[/red]"); return
+            console.print("[red]Usage: jade settings set <key> <value>[/red]"); return
         res = set_setting(key, value)
         console.print(f"[green]{res['message']}[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "reset":
         if not key:
-            console.print("[red]Usage: cortana settings reset <key>[/red]"); return
+            console.print("[red]Usage: jade settings reset <key>[/red]"); return
         res = reset_setting(key)
         console.print(f"[green]✅ {key} reset to {res['value']!r}[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "export":
@@ -1642,17 +1642,17 @@ def profile(action: str = typer.Argument("list", help="list|switch|new|delete"),
         console.print(_p.profiles_table())
     elif action == "switch":
         if not name:
-            console.print("[red]Usage: cortana profile switch <name>[/red]"); return
+            console.print("[red]Usage: jade profile switch <name>[/red]"); return
         res = _p.switch_profile(name)
         console.print(f"[green]✅ Now using profile '{name}'.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "new":
         if not name:
-            console.print("[red]Usage: cortana profile new <name>[/red]"); return
+            console.print("[red]Usage: jade profile new <name>[/red]"); return
         res = _p.create_profile(name)
         console.print(f"[green]✅ Profile '{name}' created.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "delete":
         if not name:
-            console.print("[red]Usage: cortana profile delete <name>[/red]"); return
+            console.print("[red]Usage: jade profile delete <name>[/red]"); return
         res = _p.delete_profile(name)
         console.print(f"[green]✅ Profile '{name}' deleted.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     else:
@@ -1667,12 +1667,12 @@ def project(action: str = typer.Argument("list", help="list|new|open|close|delet
         console.print(_pr.projects_table())
     elif action == "new":
         if not name:
-            console.print("[red]Usage: cortana project new <name>[/red]"); return
+            console.print("[red]Usage: jade project new <name>[/red]"); return
         res = _pr.create_project(name)
         console.print(f"[green]✅ Project '{res['name']}' created (slug: {res['slug']}).[/green]")
     elif action == "open":
         if not name:
-            console.print("[red]Usage: cortana project open <slug>[/red]"); return
+            console.print("[red]Usage: jade project open <slug>[/red]"); return
         res = _pr.open_project(name)
         console.print(f"[green]✅ Project '{name}' is now active.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "close":
@@ -1680,7 +1680,7 @@ def project(action: str = typer.Argument("list", help="list|new|open|close|delet
         console.print("[green]✅ No active project.[/green]")
     elif action == "delete":
         if not name:
-            console.print("[red]Usage: cortana project delete <slug>[/red]"); return
+            console.print("[red]Usage: jade project delete <slug>[/red]"); return
         res = _pr.delete_project(name)
         console.print(f"[green]✅ Deleted.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     else:
@@ -1689,13 +1689,13 @@ def project(action: str = typer.Argument("list", help="list|new|open|close|delet
 @app.command()
 def sim(action: str = typer.Argument("list", help="list|chat|export|import|delete"),
         name: Optional[str] = typer.Argument(None, help="Sim name or path")):
-    """Manage Cortana Sims (portable agents)."""
+    """Manage Jade Sims (portable agents)."""
     from core import sims as _s
     if action == "list":
         console.print(_s.sims_table())
     elif action == "chat":
         if not name:
-            console.print("[red]Usage: cortana sim chat <name>[/red]"); return
+            console.print("[red]Usage: jade sim chat <name>[/red]"); return
         from rich.prompt import Prompt as _Prompt
         history = []
         console.print("[dim]Chatting — empty message exits.[/dim]")
@@ -1711,18 +1711,18 @@ def sim(action: str = typer.Argument("list", help="list|chat|export|import|delet
             history.append({"role": "assistant", "text": str(res["reply"])})
     elif action == "export":
         if not name:
-            console.print("[red]Usage: cortana sim export <name> <dest>[/red]"); return
+            console.print("[red]Usage: jade sim export <name> <dest>[/red]"); return
         dest = typer.prompt("Destination path")
         res = _s.export_sim(name, dest)
         console.print(f"[green]✅ Exported to {res['file']}[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "import":
         if not name:
-            console.print("[red]Usage: cortana sim import <path>[/red]"); return
+            console.print("[red]Usage: jade sim import <path>[/red]"); return
         res = _s.import_sim(name)
         console.print(f"[green]✅ Imported sim '{res['name']}'.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "delete":
         if not name:
-            console.print("[red]Usage: cortana sim delete <name>[/red]"); return
+            console.print("[red]Usage: jade sim delete <name>[/red]"); return
         res = _s.delete_sim(name)
         console.print(f"[green]✅ Deleted.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     else:
@@ -1737,17 +1737,17 @@ def prompt(action: str = typer.Argument("list", help="list|save|apply|delete|sho
         console.print(_pr.list_prompts())
     elif action == "save":
         if not name:
-            console.print("[red]Usage: cortana prompt save <name>[/red]"); return
+            console.print("[red]Usage: jade prompt save <name>[/red]"); return
         text = typer.prompt("System prompt text")
         console.print(f"[green]✅ {_pr.save_prompt(name, text)}[/green]")
     elif action == "apply":
         if not name:
-            console.print("[red]Usage: cortana prompt apply <name>[/red]"); return
+            console.print("[red]Usage: jade prompt apply <name>[/red]"); return
         ok, msg = _pr.apply_prompt(name)
         console.print(f"[green]✅ {msg}[/green]" if ok else f"[red]❌ {msg}[/red]")
     elif action == "delete":
         if not name:
-            console.print("[red]Usage: cortana prompt delete <name>[/red]"); return
+            console.print("[red]Usage: jade prompt delete <name>[/red]"); return
         console.print(f"[green]✅ {_pr.delete_prompt(name)}[/green]")
     elif action == "show":
         if not name:
@@ -1756,12 +1756,12 @@ def prompt(action: str = typer.Argument("list", help="list|save|apply|delete|sho
             prompts = _pr.load_prompts()
             console.print(prompts.get(name, f"[red]Prompt '{name}' not found.[/red]"))
     elif action == "override":
-        # cortana prompt override <personality> <prompt-name>  (text via prompt)
+        # jade prompt override <personality> <prompt-name>  (text via prompt)
         if not name:
-            console.print("[red]Usage: cortana prompt override <personality> <prompt-name>[/red]"); return
+            console.print("[red]Usage: jade prompt override <personality> <prompt-name>[/red]"); return
         parts = name.split(None, 1)
         if len(parts) != 2:
-            console.print("[red]Usage: cortana prompt override <personality> <prompt-name>[/red]"); return
+            console.print("[red]Usage: jade prompt override <personality> <prompt-name>[/red]"); return
         text = typer.prompt("Override text (empty clears)", default="")
         console.print(f"[green]✅ {_pr.set_personality_override(parts[0], parts[1], text)}[/green]")
     else:
@@ -1784,12 +1784,12 @@ def memories_cmd(action: str = typer.Argument("show", help="show|add|forget|expo
             console.print(f"[dim]{e['id']}[/dim] {e['text']}")
     elif action == "add":
         if not text:
-            console.print("[red]Usage: cortana memories add <core> <text>[/red]"); return
+            console.print("[red]Usage: jade memories add <core> <text>[/red]"); return
         res = _mc.remember(core, text)
         console.print(f"[green]✅ Stored ({res['entry']['id']}).[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "forget":
         if not text:
-            console.print("[red]Usage: cortana memories forget <core> <id-or-text>[/red]"); return
+            console.print("[red]Usage: jade memories forget <core> <id-or-text>[/red]"); return
         res = _mc.forget(core, text)
         console.print(f"[green]✅ Removed {res['removed']}.[/green]" if res["ok"] else f"[red]❌ {res['error']}[/red]")
     elif action == "export":
@@ -1815,12 +1815,12 @@ def connector(action: str = typer.Argument("list", help="list|status|connect|dis
                 console.print_json(data=s)
     elif action == "connect":
         if not conn_id:
-            console.print("[red]Usage: cortana connector connect <id>[/red]"); return
+            console.print("[red]Usage: jade connector connect <id>[/red]"); return
         res = _cx.get_connector(conn_id).connect()
         console.print(f"[green]✅ Connected.[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
     elif action == "disconnect":
         if not conn_id:
-            console.print("[red]Usage: cortana connector disconnect <id>[/red]"); return
+            console.print("[red]Usage: jade connector disconnect <id>[/red]"); return
         res = _cx.get_connector(conn_id).disconnect()
         console.print(f"[green]✅ {res.get('message', '')}[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
     else:
@@ -1838,12 +1838,12 @@ def signin(action: str = typer.Argument("status", help="status|in|out"),
             console.print(f"{mark} [cyan]{s['display']}[/cyan] — {detail}")
     elif action == "in":
         if not provider:
-            console.print("[red]Usage: cortana signin in <microsoft|apple|google|github>[/red]"); return
+            console.print("[red]Usage: jade signin in <microsoft|apple|google|github>[/red]"); return
         res = _si.signin(provider)
         console.print(f"[green]✅ Signed in as {res.get('account', '')}.[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
     elif action == "out":
         if not provider:
-            console.print("[red]Usage: cortana signin out <provider>[/red]"); return
+            console.print("[red]Usage: jade signin out <provider>[/red]"); return
         res = _si.signout(provider)
         console.print(f"[green]✅ {res.get('message', '')}[/green]" if res.get("ok") else f"[red]❌ {res.get('error')}[/red]")
     else:
@@ -1851,8 +1851,8 @@ def signin(action: str = typer.Argument("status", help="status|in|out"),
 
 @app.command()
 def account(action: str = typer.Argument("show", help="show|set-name")):
-    """Local Cortana Account record (see docs/CORTANA_ACCOUNT.md)."""
-    from core import cortana_account as _ca
+    """Local Jade Account record (see docs/JADE_ACCOUNT.md)."""
+    from core import jade_account as _ca
     if action == "show":
         import json as _json
         console.print(_json.dumps(_ca.get_account(), indent=2))
@@ -1881,7 +1881,7 @@ def webask(query: str, provider: Optional[str] = None):
 
 @app.command()
 def optimize():
-    """Optimize CORTANA and system environment for peak performance."""
+    """Optimize JADE and system environment for peak performance."""
     from core.deps import ensure_all
     import shutil
     

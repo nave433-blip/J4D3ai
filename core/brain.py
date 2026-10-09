@@ -1,5 +1,5 @@
 """
-Robust LLM brain for CORTANA.
+Robust LLM brain for JADE.
 
 Improvements:
 - Intelligent task-based routing
@@ -25,7 +25,7 @@ from core.config import load_config, save_config, get_env_with_config
 from core.devmode import timed_request, effective_system_prompt
 
 # litellm is heavy (~3s import). Load it lazily on first actual LLM call so
-# `cortana --help` and other non-LLM paths start fast.
+# `jade --help` and other non-LLM paths start fast.
 _litellm_mod = None
 
 
@@ -58,12 +58,12 @@ def _short_err_str(text: str) -> str:
     return text.splitlines()[0] if text else "unknown error"
 
 console = Console()
-logger = logging.getLogger("cortana_brain")
+logger = logging.getLogger("jade_brain")
 
 # -------------------------
 # Behavioral Mandates
 # -------------------------
-SYSTEM_PROMPT = """You are CORTANA, a highly intelligent, proactive, and precise personal AI coding assistant.
+SYSTEM_PROMPT = """You are JADE, a highly intelligent, proactive, and precise personal AI coding assistant.
 
 Core Directives:
 1. TECHNICAL HELPFULNESS: Provide direct, accurate technical help for coding and system tasks.
@@ -95,7 +95,7 @@ PERSONALITIES.update({
     "sarcastic": _PERSONALITY_REGISTRY["witty"].system_prompt,
     "concise": _PERSONALITY_REGISTRY["professional"].system_prompt,
     "mentor": _PERSONALITY_REGISTRY["professional"].system_prompt,
-    "nave_ai": _PERSONALITY_REGISTRY["cortana"].system_prompt,
+    "nave_ai": _PERSONALITY_REGISTRY["jade"].system_prompt,
 })
 
 # -------------------------
@@ -143,7 +143,7 @@ def enable_gpu_offload():
 class ModelManager:
     def __init__(self):
         cfg = load_config()
-        self.current_model = cfg.get("cortana_model", "llama3")
+        self.current_model = cfg.get("jade_model", "llama3")
         # Ensure 'ollama/' prefix if no provider is specified
         if "/" not in self.current_model:
             self.current_model = f"ollama/{self.current_model}"
@@ -256,7 +256,7 @@ class GeminiProvider(LiteLLMProvider):
 
 class OllamaProvider(LLMProvider):
     def __init__(self, model=None):
-        super().__init__(model or get_env_with_config("cortana_model") or "llama3")
+        super().__init__(model or get_env_with_config("jade_model") or "llama3")
         cfg = load_config()
         self.hosts = cfg.get("ollama_hosts", ["http://localhost:11434"])
         self.host = random.choice(self.hosts)
@@ -382,13 +382,13 @@ def multibrain_think(task: str, providers: Optional[List[str]] = None) -> Dict[s
 
     # Tier 1.5: P2P Swarm (Hive Mind)
     try:
-        from core.p2p import scan_for_cortana_peers, send_remote_command
+        from core.p2p import scan_for_jade_peers, send_remote_command
         import json
         
         if not hasattr(multibrain_think, "_peer_index"):
             multibrain_think._peer_index = 0
             
-        all_peers = scan_for_cortana_peers()
+        all_peers = scan_for_jade_peers()
         
         if all_peers:
             all_peers.sort()
@@ -508,7 +508,7 @@ def think_stream(context: str, task: str, model: Optional[str] = None, prompt_na
 def get_provider(model_override=None, task_hint=None):
     cfg = load_config()
     provider_name = cfg.get("provider", "ollama")
-    model = model_override or cfg.get("cortana_model")
+    model = model_override or cfg.get("jade_model")
     
     if provider_name == "ollama":
         return OllamaProvider(model=model)
@@ -522,9 +522,9 @@ def get_provider(model_override=None, task_hint=None):
 
 def distribute_task(task: str) -> str:
     from core.torrent_balancer import chunk_task, aggregate_results
-    from core.p2p import scan_for_cortana_peers, send_remote_command
+    from core.p2p import scan_for_jade_peers, send_remote_command
     
-    peers = scan_for_cortana_peers()
+    peers = scan_for_jade_peers()
     if not peers:
         # Fallback to local
         return think(context="Local Fallback", task=task)

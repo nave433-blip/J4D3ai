@@ -1,14 +1,14 @@
-// Cortana reference server — Azure Container Apps deployment.
+// Jade reference server — Azure Container Apps deployment.
 // Validate before use:  az bicep build --file azure/container-apps.bicep
 //
 // Deploys: Log Analytics workspace, Container Apps environment, and the
-// cortana-server container app (image built from server/Dockerfile and
+// jade-server container app (image built from server/Dockerfile and
 // pushed to a registry first — see server/README.md).
 //
 // Usage:
-//   az group create -n cortana-rg -l eastus
-//   az deployment group create -g cortana-rg -f azure/container-apps.bicep \
-//     -p containerImage=<registry>/cortana-server:latest \
+//   az group create -n jade-rg -l eastus
+//   az deployment group create -g jade-rg -f azure/container-apps.bicep \
+//     -p containerImage=<registry>/jade-server:latest \
 //        tokenKey=<base64-32-bytes> chatApiKey=<key>
 
 targetScope = 'resourceGroup'
@@ -16,7 +16,7 @@ targetScope = 'resourceGroup'
 @description('Azure region for all resources.')
 param location string = 'eastus'
 
-@description('Container image for cortana-server (registry/repo:tag).')
+@description('Container image for jade-server (registry/repo:tag).')
 param containerImage string
 
 @description('Base64 Fernet key for connector-token encryption (openssl rand -base64 32).')
@@ -49,7 +49,7 @@ param githubClientId string = ''
 param githubClientSecret string = ''
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
-  name: 'cortana-logs'
+  name: 'jade-logs'
   location: location
   properties: {
     sku: { name: 'PerGB2018' }
@@ -58,7 +58,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
 }
 
 resource appEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
-  name: 'cortana-env'
+  name: 'jade-env'
   location: location
   properties: {
     appLogsConfiguration: {
@@ -72,7 +72,7 @@ resource appEnv 'Microsoft.App/managedEnvironments@2023-05-01' = {
 }
 
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
-  name: 'cortana-server'
+  name: 'jade-server'
   location: location
   properties: {
     managedEnvironmentId: appEnv.id
@@ -93,16 +93,16 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
     template: {
       containers: [
         {
-          name: 'cortana-server'
+          name: 'jade-server'
           image: containerImage
           resources: { cpu: json('0.5'), memory: '1Gi' }
           env: [
-            { name: 'CORTANA_SERVER_HOST', value: '0.0.0.0' }
-            { name: 'CORTANA_SERVER_PORT', value: '8080' }
-            { name: 'CORTANA_DATA_DIR', value: '/data' }
-            { name: 'CORTANA_TOKEN_KEY', secretRef: 'token-key' }
-            { name: 'CORTANA_CHAT_API_KEY', secretRef: 'chat-api-key' }
-            { name: 'CORTANA_PUBLIC_URL', value: publicUrl }
+            { name: 'JADE_SERVER_HOST', value: '0.0.0.0' }
+            { name: 'JADE_SERVER_PORT', value: '8080' }
+            { name: 'JADE_DATA_DIR', value: '/data' }
+            { name: 'JADE_TOKEN_KEY', secretRef: 'token-key' }
+            { name: 'JADE_CHAT_API_KEY', secretRef: 'chat-api-key' }
+            { name: 'JADE_PUBLIC_URL', value: publicUrl }
             { name: 'GOOGLE_CLIENT_ID', value: googleClientId }
             { name: 'GOOGLE_CLIENT_SECRET', secretRef: 'google-client-secret' }
             { name: 'MICROSOFT_CLIENT_ID', value: microsoftClientId }

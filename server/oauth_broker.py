@@ -80,7 +80,7 @@ class TokenCipher:
     def __init__(self, key_b64: str):
         if not key_b64:
             raise CryptoUnavailable(
-                "CORTANA_TOKEN_KEY is not set — connector token storage is disabled. "
+                "JADE_TOKEN_KEY is not set — connector token storage is disabled. "
                 "Generate one with: openssl rand -base64 32"
             )
         try:
@@ -93,7 +93,7 @@ class TokenCipher:
                 "(server/requirements.txt). Refusing to store tokens insecurely."
             ) from exc
         except Exception as exc:
-            raise CryptoUnavailable(f"CORTANA_TOKEN_KEY is invalid: {exc}") from exc
+            raise CryptoUnavailable(f"JADE_TOKEN_KEY is invalid: {exc}") from exc
 
     def encrypt(self, plaintext: str) -> str:
         return self._fernet.encrypt(plaintext.encode()).decode()
@@ -160,7 +160,7 @@ def _post_token(url: str, fields: dict, timeout: int = 20) -> dict:
     body = urllib.parse.urlencode(fields).encode()
     req = urllib.request.Request(url, data=body,
                                  headers={"Accept": "application/json",
-                                          "User-Agent": "cortana-server/0.1"})
+                                          "User-Agent": "jade-server/0.1"})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
 

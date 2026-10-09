@@ -16,6 +16,6 @@ class Jade < Formula
   end
 
   test do
-    system "#{bin}/cortana", "--help"
+    system "#{bin}/jade", "--help"
   end
 end

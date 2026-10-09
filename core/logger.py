@@ -18,7 +18,7 @@ class ErrorLogger:
             os.makedirs(LOG_DIR, exist_ok=True)
             log_file = os.path.join(LOG_DIR, f"error_{datetime.date.today().isoformat()}.log")
         except OSError:
-            log_file = os.path.join(tempfile.gettempdir(), f"cortana_error_{datetime.date.today().isoformat()}.log")
+            log_file = os.path.join(tempfile.gettempdir(), f"jade_error_{datetime.date.today().isoformat()}.log")
         
         timestamp = datetime.datetime.now().isoformat()
         stack_trace = traceback.format_exc()
@@ -45,5 +45,5 @@ class ErrorLogger:
         prompt = f"Analyze this error and suggest a fix:\n{error_msg}"
         res = think("System Debugger", prompt)
         suggestion = res.get("text", str(res)) if isinstance(res, dict) else str(res)
-        console.print(Panel(suggestion, title="🧠 CORTANA Auto-Debug Suggestion", border_style="yellow"))
+        console.print(Panel(suggestion, title="🧠 JADE Auto-Debug Suggestion", border_style="yellow"))
         return suggestion

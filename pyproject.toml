@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jade"
 version = "0.3.0"
-description = "Cortana: local AI assistant for macOS and Linux"
+description = "Jade: local AI assistant for macOS and Linux"
 
 readme = "README.md"
 requires-python = ">=3.12"

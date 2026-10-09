@@ -1,4 +1,4 @@
-"""Tests for server/ — the Cortana reference cloud server.
+"""Tests for server/ — the Jade reference cloud server.
 
 The app is started in-process on an ephemeral loopback port with a temp
 data dir. No live network: JWKS fetching, token endpoints, the GitHub
@@ -16,7 +16,7 @@ import urllib.error
 import pytest
 
 from server import __version__
-from server.app import CortanaApp, ThreadedHTTPServer, _Handler
+from server.app import JadeApp, ThreadedHTTPServer, _Handler
 from server.config import ServerConfig
 from server.db import Database
 from server import accounts as accounts_mod
@@ -44,7 +44,7 @@ def app(tmp_path, monkeypatch):
     cfg.github_client_id = "test-gh-client"
     cfg.github_client_secret = "test-gh-secret"
     # No chat provider by default -> honest 501 (a test enables it).
-    application = CortanaApp(cfg)
+    application = JadeApp(cfg)
     httpd = ThreadedHTTPServer(("127.0.0.1", 0), _Handler)
     httpd.app = application
     port = httpd.server_address[1]

@@ -72,25 +72,25 @@ BANNED_PHRASES = [
 
 def test_personalities_all_resolve_and_distinct():
     names = [p.name for p in list_personalities()]
-    assert names == ["cortana", "witty", "clippy", "professional"]
+    assert names == ["jade", "witty", "clippy", "professional"]
     prompts = [p.system_prompt for p in list_personalities()]
     assert len(set(prompts)) == 4, "each personality must sound different"
     for p in list_personalities():
         assert p.title and p.description and p.greeting
 
 
-def test_personality_default_is_cortana():
-    assert DEFAULT_PERSONALITY == "cortana"
-    assert resolve_personality(None).name == "cortana"
-    assert resolve_personality("").name == "cortana"
-    assert resolve_personality("nonsense").name == "cortana"
+def test_personality_default_is_jade():
+    assert DEFAULT_PERSONALITY == "jade"
+    assert resolve_personality(None).name == "jade"
+    assert resolve_personality("").name == "jade"
+    assert resolve_personality("nonsense").name == "jade"
 
 
 def test_personality_legacy_aliases_keep_working():
     assert resolve_personality("sarcastic").name == "witty"
     assert resolve_personality("concise").name == "professional"
     assert resolve_personality("mentor").name == "professional"
-    assert resolve_personality("nave_ai").name == "cortana"
+    assert resolve_personality("nave_ai").name == "jade"
     assert is_known_personality("sarcastic")
     assert not is_known_personality("definitely-not-a-personality")
 
@@ -109,7 +109,7 @@ def test_personality_no_refusal_bypass():
 
 def test_brain_personalities_backcompat():
     import core.brain as brain_mod
-    assert isinstance(brain_mod.PERSONALITIES["cortana"], str)
+    assert isinstance(brain_mod.PERSONALITIES["jade"], str)
     assert isinstance(brain_mod.PERSONALITIES["professional"], str)
     assert "sarcastic" in brain_mod.PERSONALITIES  # legacy key still present
 
@@ -225,7 +225,7 @@ def test_profiles_load():
     profiles = profiles_mod.list_profiles()
     names = [p.name for p in profiles]
     assert "default" in names
-    assert "licensed-cortana" in names
+    assert "licensed-jade" in names
     assert names[0] == "default"  # default sorts first
     for p in profiles:
         assert p.description, p.name
@@ -237,7 +237,7 @@ def test_get_profile_unknown_returns_none():
 
 
 def test_licensed_profile_is_honest_drop_in_slot():
-    licensed = profiles_mod.get_profile("licensed-cortana")
+    licensed = profiles_mod.get_profile("licensed-jade")
     assert licensed is not None
     assert "licensed" in licensed.note.lower()
     engine = profiles_mod.engine_for_profile(licensed)
@@ -354,7 +354,7 @@ def test_conversation_push_to_talk_flow():
     events = []
     convo = conv_mod.Conversation(
         capture=_ScriptCapture([_loud_chunk(), _silent_chunk()]),
-        stt=_ScriptSTT(["hello cortana"]),
+        stt=_ScriptSTT(["hello jade"]),
         tts=_ScriptTTS(),
         vad=_ScriptVAD([True, False]),  # speech while listening, quiet while she speaks
         think=lambda t: f"reply to {t}",
@@ -364,8 +364,8 @@ def test_conversation_push_to_talk_flow():
     kinds = [k for k, _ in events]
     assert "heard" in kinds and "reply" in kinds and "end" in kinds
     heard = dict((k, m) for k, m in events if k == "heard")["heard"]
-    assert heard == "hello cortana"
-    assert convo.tts.spoken == ["reply to hello cortana"]
+    assert heard == "hello jade"
+    assert convo.tts.spoken == ["reply to hello jade"]
 
 
 def test_conversation_barge_in_stops_speech():
@@ -441,7 +441,7 @@ def test_overlay_html_has_glassmorphism():
     html = overlay_html()
     assert "backdrop-filter" in html
     assert "-webkit-backdrop-filter" in html
-    assert "Cortana" in html
+    assert "Jade" in html
     # Graceful fallback where blur is unsupported.
     assert "@supports not" in html
 
@@ -473,8 +473,8 @@ def test_dashboard_personality_voice_api(dash_server, tmp_path, monkeypatch):
     monkeypatch.setattr(config_mod, "CONFIG_DIR", tmp_path)
 
     state = get_personality_state()
-    assert state["current"] == "cortana"
-    assert {o["name"] for o in state["options"]} == {"cortana", "witty", "clippy", "professional"}
+    assert state["current"] == "jade"
+    assert {o["name"] for o in state["options"]} == {"jade", "witty", "clippy", "professional"}
 
     res = set_personality_state("clippy")
     assert res == {"ok": True, "current": "clippy"}
@@ -505,7 +505,7 @@ def test_launch_gui_falls_back_without_pywebview(monkeypatch, capsys):
 def test_app_icon_wired():
     from core.desktop import app_icon_path, ASSETS_DIR
     mark = ASSETS_DIR / "jade-mark.png"
-    assert mark.exists(), "generated Cortana mark must ship in assets/"
+    assert mark.exists(), "generated Jade mark must ship in assets/"
     assert app_icon_path() == mark
 
 

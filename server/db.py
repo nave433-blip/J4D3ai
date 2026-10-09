@@ -1,4 +1,4 @@
-"""Storage for the Cortana reference server.
+"""Storage for the Jade reference server.
 
 Reference backend: SQLite (file in the data dir, WAL mode). All access
 goes through the small ``Database`` interface below using parameterized

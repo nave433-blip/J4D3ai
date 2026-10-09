@@ -2,7 +2,7 @@
 
 No pexpect: stdin is a pipe, so prompt_toolkit raises EOFError when the
 script is exhausted and the loop must break cleanly (exit 0, no traceback).
-CORTANA_SKIP_STARTUP=1 keeps startup prompts from eating the piped script;
+JADE_SKIP_STARTUP=1 keeps startup prompts from eating the piped script;
 HOME is sandboxed so no real user config is touched.
 """
 import json
@@ -31,7 +31,7 @@ def _repl_env(tmp_path):
     env = dict(os.environ)
     env["HOME"] = str(home)
     env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
-    env["CORTANA_SKIP_STARTUP"] = "1"
+    env["JADE_SKIP_STARTUP"] = "1"
     return env
 
 
@@ -53,7 +53,7 @@ def _clean(result):
 def test_repl_help_then_exit(tmp_path):
     """/help renders the grouped command reference (not the agent loop)."""
     out = _clean(_run_repl(tmp_path, "/help\n/exit\n"))
-    assert "CORTANA Command Reference" in out
+    assert "JADE Command Reference" in out
     assert "Brain Loop Interrupted" not in out
     assert "Goodbye" in out
 

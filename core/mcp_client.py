@@ -1,11 +1,11 @@
-"""Minimal MCP (Model Context Protocol) client — Cortana's spin.
+"""Minimal MCP (Model Context Protocol) client — Jade's spin.
 
 Connects to MCP servers over stdio using newline-delimited JSON-RPC 2.0
 (per the MCP stdio transport), performs the initialize handshake, lists
 tools, and calls them.
 
 - stdlib only: no new dependencies.
-- Servers are configured in ``~/.cortana/config.json`` under "mcp_servers":
+- Servers are configured in ``~/.jade/config.json`` under "mcp_servers":
     {"mcp_servers": {"my-server": {"command": "npx",
                                    "args": ["-y", "some-mcp-server"],
                                    "env": {"FOO": "bar"}}}}
@@ -139,7 +139,7 @@ class MCPClient:
         result = self._request("initialize", {
             "protocolVersion": MCP_PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
-            "clientInfo": {"name": "cortana", "version": CURRENT_VERSION},
+            "clientInfo": {"name": "jade", "version": CURRENT_VERSION},
         }, timeout=timeout)
         self._notify("notifications/initialized")
         self.server_info = result.get("serverInfo", {})
@@ -190,8 +190,8 @@ def connect_server(name: str, timeout: float = 15.0) -> MCPClient:
 def setup_docs() -> Panel:
     return Panel(
         "[bold]No MCP servers configured.[/bold]\n\n"
-        "MCP (Model Context Protocol) lets Cortana use external tools through\n"
-        "standardized servers. Add one to [cyan]~/.cortana/config.json[/cyan]:\n\n"
+        "MCP (Model Context Protocol) lets Jade use external tools through\n"
+        "standardized servers. Add one to [cyan]~/.jade/config.json[/cyan]:\n\n"
         '[green]"mcp_servers"[/green]: {\n'
         '  [green]"my-server"[/green]: {\n'
         '    [green]"command"[/green]: [yellow]"npx"[/yellow],\n'

@@ -1,8 +1,8 @@
-"""cortana_core — the importable Cortana library, decoupled from the CLI.
+"""jade_core — the importable Jade library, decoupled from the CLI.
 
-This package is Cortana's **stable public API** for embedding: everything
+This package is Jade's **stable public API** for embedding: everything
 below is importable without the Typer CLI, the Rich UI, or any interactive
-prompts. Imports are lazy (PEP 562), so ``import cortana_core`` stays fast
+prompts. Imports are lazy (PEP 562), so ``import jade_core`` stays fast
 and never pulls in heavy provider deps until you actually call something.
 
 Stable API
@@ -15,7 +15,7 @@ Stable API
   max_models=5) -> dict``
     Ask several configured providers and synthesize a consensus answer.
 - ``load_config() -> dict`` / ``save_config(config) -> None``
-    Read/write Cortana's JSON config (``~/.cortana/config.json``).
+    Read/write Jade's JSON config (``~/.jade/config.json``).
 - ``run_sandboxed(command, timeout=30, ...) -> SandboxResult``
     Run a shell command in an isolated Linux sandbox (bubblewrap when
     available). See ``tools.sandbox`` for the exact isolation guarantees.
@@ -25,10 +25,10 @@ Stable API
 
 Quickstart
 ----------
->>> import cortana_core
->>> cortana_core.load_config()["provider"]
+>>> import jade_core
+>>> jade_core.load_config()["provider"]
 'ollama'
->>> reply = cortana_core.think("greeter", "Say hello in one short line.")
+>>> reply = jade_core.think("greeter", "Say hello in one short line.")
 
 The REST equivalent of this API is served by ``core.apiserver``
 (OpenAI-compatible ``/v1/chat/completions``); the VS Code driver in

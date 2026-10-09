@@ -1,4 +1,4 @@
-"""Windows environment integration for Cortana.
+"""Windows environment integration for Jade.
 
 Every public function is gated on ``sys.platform == "win32"``. On any
 other platform they return ``{"ok": False, "error": "Windows only"}`` —
@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 ON_WINDOWS = sys.platform == "win32"
 
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
-_RUN_VALUE = "Cortana"
+_RUN_VALUE = "Jade"
 
 
 def _not_windows() -> Dict[str, Any]:
@@ -58,7 +58,7 @@ def _toast_ps_script(title: str, message: str, app_id: str) -> str:
 
 
 def toast(title: str, message: str,
-          app_id: str = "Cortana") -> Dict[str, Any]:
+          app_id: str = "Jade") -> Dict[str, Any]:
     """Show a Windows toast notification. Returns {"ok": True} or an error."""
     if not ON_WINDOWS:
         return _not_windows()
@@ -97,7 +97,7 @@ def _exe_path() -> str:
 
 
 def startup_status() -> Dict[str, Any]:
-    """Check whether Cortana is registered to run at Windows login."""
+    """Check whether Jade is registered to run at Windows login."""
     if not ON_WINDOWS:
         return _not_windows()
     import winreg
@@ -112,7 +112,7 @@ def startup_status() -> Dict[str, Any]:
 
 
 def set_startup(enabled: bool) -> Dict[str, Any]:
-    """Toggle Cortana's HKCU Run entry. This is the only registry write
+    """Toggle Jade's HKCU Run entry. This is the only registry write
     this module performs."""
     if not ON_WINDOWS:
         return _not_windows()
@@ -192,8 +192,8 @@ def driver_info() -> Dict[str, Any]:
     kernel drivers. This function exists so the assistant can say so
     plainly instead of hallucinating driver management."""
     return {"ok": False,
-            "error": ("Driver installation is not possible from Cortana: "
+            "error": ("Driver installation is not possible from Jade: "
                       "Windows kernel drivers require an EV-signed .inf/.sys "
                       "package installed via pnputil/Device Manager with "
-                      "administrator rights. Cortana is a user-space app and "
+                      "administrator rights. Jade is a user-space app and "
                       "does not ship, install, or manage drivers.")}

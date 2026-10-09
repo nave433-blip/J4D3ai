@@ -17,19 +17,19 @@ def test_install_sh_hardening_pins():
     src = (REPO / "install.sh").read_text()
     assert "set -euo pipefail" in src, "strict mode missing"
     assert "(3, 12)" in src, "Python 3.12 floor check missing"
-    assert "CORTANA_SKIP_SYSTEM_DEPS" in src, "system-dep skip knob missing"
-    assert "CORTANA_SKIP_GLOBAL_LINK" in src, "global-link skip knob missing"
-    assert "CORTANA_REF" in src, "branch/tag override knob missing"
+    assert "JADE_SKIP_SYSTEM_DEPS" in src, "system-dep skip knob missing"
+    assert "JADE_SKIP_GLOBAL_LINK" in src, "global-link skip knob missing"
+    assert "JADE_REF" in src, "branch/tag override knob missing"
     assert "pwd -P" in src, "self-copy guard missing"
     assert "pull --ff-only" in src, "idempotent refresh missing"
     assert "--help" in src, "post-install smoke test missing"
-    assert "is not a CORTANA checkout" in src, "non-empty foreign dir guard missing"
+    assert "is not a JADE checkout" in src, "non-empty foreign dir guard missing"
     assert "MIN_KB" in src, "disk-space pre-check missing"
     assert "needs ~1.5 GiB" in src, "disk-space error message missing"
 
 
 def test_formula_wellformed():
-    src = (REPO / "cortana.rb").read_text()
+    src = (REPO / "jade.rb").read_text()
     url = re.search(r'url "([^"]+)"', src).group(1)
     sha = re.search(r'sha256 "([^"]+)"', src).group(1)
     assert re.fullmatch(r"[0-9a-f]{64}", sha), "sha256 must be 64 hex chars"
@@ -40,9 +40,9 @@ def test_formula_wellformed():
 
 
 def test_formula_sha256_matches_release_tarball():
-    """The sha256 in cortana.rb must equal the real downloadable tarball.
+    """The sha256 in jade.rb must equal the real downloadable tarball.
     Network-free: pins the verified hash captured 2026-09-25 for v0.1.7."""
-    src = (REPO / "cortana.rb").read_text()
+    src = (REPO / "jade.rb").read_text()
     url = re.search(r'url "([^"]+)"', src).group(1)
     sha = re.search(r'sha256 "([^"]+)"', src).group(1)
     verified = {
@@ -74,17 +74,17 @@ def test_license_exists_and_declares_mit():
 def test_pypi_metadata_ready():
     with open(REPO / "pyproject.toml", "rb") as f:
         proj = tomllib.load(f)["project"]
-    assert proj["name"] == "cortana"
+    assert proj["name"] == "jade"
     assert proj["readme"] == "README.md"
     assert (REPO / "README.md").exists()
-    assert "cortana" in proj["scripts"], "console script entry point missing"
+    assert "jade" in proj["scripts"], "console script entry point missing"
     assert proj["requires-python"] == ">=3.12"
 
 
 def test_packaging_runbook_exists():
     md = (REPO / "PACKAGING.md").read_text()
     for needle in ["twine check", "twine upload", "python -m build",
-                   "cortana.rb", "CORTANA_REF", "pypi.org"]:
+                   "jade.rb", "JADE_REF", "pypi.org"]:
         assert needle in md, f"PACKAGING.md missing: {needle}"
 
 

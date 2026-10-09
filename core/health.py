@@ -9,13 +9,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 console = Console()
 
 REPOS = {
-    "jarvis-dev": {"path": "~/.cortana-app", "check": f"{sys.executable} -m cli --help", "repair": f"{sys.executable} -m pip install -e ."},
+    "jarvis-dev": {"path": "~/.jade-app", "check": f"{sys.executable} -m cli --help", "repair": f"{sys.executable} -m pip install -e ."},
     "navescript": {"path": "~/navescript", "check": "cargo --version", "repair": "cargo build --release"},
     "wikiproxy": {"path": "~/wikiproxy", "check": f"{sys.executable} -m wikiproxy --help", "repair": f"{sys.executable} -m pip install -e ."},
 }
 
 def check_system_health():
-    """Check health of CORTANA and related engineering repos."""
+    """Check health of JADE and related engineering repos."""
     results = []
     
     if not REPOS:

@@ -28,7 +28,7 @@ from core.ui import display_chat_message
 def _sandbox_enabled():
     """Opt-in Linux code sandbox for the SHELL tool.
 
-    Enabled with "code_sandbox": true in ~/.cortana/config.json. Default off —
+    Enabled with "code_sandbox": true in ~/.jade/config.json. Default off —
     plain execution stays the default; the sandbox only ever restricts.
     """
     try:
@@ -197,7 +197,7 @@ def debug_loop(issue, model=None, prompt=None, ui_hint=None, on_turn=None):
     for i in range(10): 
         from rich.status import Status
         
-        with Status(f"[bold cyan]Cycle {i+1}:[/bold cyan] CORTANA is reasoning...", spinner="dots"):
+        with Status(f"[bold cyan]Cycle {i+1}:[/bold cyan] JADE is reasoning...", spinner="dots"):
             # think_structured returns {"ok", "text", "error"}; plain think()
             # returns only the text str, which would fail the dict check below
             # and abort the loop on the very first cycle.
@@ -224,7 +224,7 @@ def debug_loop(issue, model=None, prompt=None, ui_hint=None, on_turn=None):
         if thoughts.strip():
             # If there are no tool calls, this is a final answer
             if not tool_lines:
-                display_chat_message("CORTANA", thoughts)
+                display_chat_message("JADE", thoughts)
                 if on_turn:
                     try: on_turn("assistant", thoughts)
                     except Exception: pass
@@ -246,7 +246,7 @@ def debug_loop(issue, model=None, prompt=None, ui_hint=None, on_turn=None):
             if thoughts.strip() and not tool_lines:
                 # We already displayed the final message
                 return
-            ok = Prompt.ask("\nCORTANA seems to have finished. Exit?", choices=["y", "n"], default="y")
+            ok = Prompt.ask("\nJADE seems to have finished. Exit?", choices=["y", "n"], default="y")
             if ok.lower() == "y":
                 return
             context += f"\nUser feedback: Please continue."

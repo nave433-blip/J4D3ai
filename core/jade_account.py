@@ -1,12 +1,12 @@
-"""Local Cortana Account record.
+"""Local Jade Account record.
 
-A Cortana Account is the user's identity inside Cortana: a display name plus
+A Jade Account is the user's identity inside Jade: a display name plus
 the set of linked third-party sign-ins (Microsoft, Apple, Google, GitHub).
 This module is the *client-side slot* for that identity — a local record in
-``~/.cortana/account.json``. There is deliberately no server here.
+``~/.jade/account.json``. There is deliberately no server here.
 
-See ``docs/CORTANA_ACCOUNT.md`` for the protocol sketch of the future hosted
-Cortana cloud service. That document is explicit: the cloud backend does not
+See ``docs/JADE_ACCOUNT.md`` for the protocol sketch of the future hosted
+Jade cloud service. That document is explicit: the cloud backend does not
 exist yet; this round delivers the local record and the sign-in plumbing that
 a future backend would consume.
 """
@@ -24,7 +24,7 @@ ACCOUNT_FILE = CONFIG_DIR / "account.json"
 
 def _blank() -> Dict[str, Any]:
     return {"display_name": "", "email": "", "linked": {},
-            "created": time.time(), "format": "cortana-account/1"}
+            "created": time.time(), "format": "jade-account/1"}
 
 
 def get_account() -> Dict[str, Any]:
@@ -84,9 +84,9 @@ def account_menu() -> None:
             f"Display name: [bold]{doc.get('display_name') or '(not set)'}[/bold]\n"
             f"Email: {doc.get('email') or '(not set)'}\n"
             f"Linked sign-ins: {linked}\n\n"
-            "[dim]Local record only — the hosted Cortana cloud does not exist yet. "
-            "See docs/CORTANA_ACCOUNT.md.[/dim]",
-            title="Cortana Account", border_style="cyan"))
+            "[dim]Local record only — the hosted Jade cloud does not exist yet. "
+            "See docs/JADE_ACCOUNT.md.[/dim]",
+            title="Jade Account", border_style="cyan"))
         console.print("[n] set display name   [b]ack")
         choice = Prompt.ask("Action", choices=["n", "b"], default="b")
         if choice == "b":

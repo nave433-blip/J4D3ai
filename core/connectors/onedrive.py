@@ -13,7 +13,7 @@ from typing import Any, Dict
 from core.connectors.base import Connector
 from core.connectors.graph import GraphConnectorBase
 
-# Downloads are confined to the Cortana workspace, mirroring core/p2p.py.
+# Downloads are confined to the Jade workspace, mirroring core/p2p.py.
 WORKSPACE_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
@@ -97,7 +97,7 @@ class OneDriveConnector(GraphConnectorBase, Connector):
             dest = _is_path_confined(local_path)
             if dest is None:
                 return {"ok": False,
-                        "error": "Downloads are confined to the Cortana workspace."}
+                        "error": "Downloads are confined to the Jade workspace."}
             remote = remote_path.strip("/")
             res = client.request("GET", f"/me/drive/root:/{remote}:/content",
                                  raw=True)

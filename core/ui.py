@@ -17,7 +17,7 @@ def set_warp_status(text: str):
 
 def clear_warp_status():
     """Reset the terminal tab title."""
-    set_warp_status("CORTANA")
+    set_warp_status("JADE")
 
 def display_chat_message(role: str, text: str):
     """Display a message in a Gemini-style high-fidelity ASCII box."""
@@ -28,8 +28,8 @@ def display_chat_message(role: str, text: str):
     # Clear status when message is displayed
     clear_warp_status()
     
-    color = "cyan" if role.lower() == "cortana" else "green"
-    icon = "🧠" if role.lower() == "cortana" else "👤"
+    color = "cyan" if role.lower() == "jade" else "green"
+    icon = "🧠" if role.lower() == "jade" else "👤"
     
     panel = Panel(
         Markdown(text),
@@ -44,7 +44,7 @@ def display_chat_message(role: str, text: str):
 
 def display_welcome():
     console.print(Align.center(Panel(
-        Markdown(f"# CORTANA\nCreated by **Nave433 (Evan Shipley)**\n\nVersion: `{CURRENT_VERSION}`"),
+        Markdown(f"# JADE\nCreated by **Nave433 (Evan Shipley)**\n\nVersion: `{CURRENT_VERSION}`"),
         style="bold blue",
         border_style="cyan",
         subtitle="Type /help to see what I can do",
@@ -118,7 +118,7 @@ def get_menu_grid() -> Table:
     grid.add_column(justify="center")
 
     agents = _menu_group("🤖 Core AI Agents", "magenta", [
-        ("/chat", "Consult CORTANA — technical advice, explanations"),
+        ("/chat", "Consult JADE — technical advice, explanations"),
         ("/fix", "Autonomous research & repair loop for bugs"),
         ("/forge", "Code synthesis & creation"),
         ("/plan", "Strategic engineering roadmaps"),
@@ -132,7 +132,7 @@ def get_menu_grid() -> Table:
         ("/code", "Agentic coding: propose diff, confirm, apply, rewind"),
         ("/suggest", "Suggest a shell command for a task (never auto-runs)"),
         ("/explain", "Explain a shell command in plain language"),
-        ("/schedule", "Task scheduler: cron/interval/one-shot jobs in-Cortana"),
+        ("/schedule", "Task scheduler: cron/interval/one-shot jobs in-Jade"),
         ("/rewind", "Conversation time-travel: rewind, branch, diff"),
     ])
     devops = _menu_group("🛠️ DevOps & Utilities", "green", [
@@ -166,7 +166,7 @@ def get_menu_grid() -> Table:
     grid.add_row(accounts, _menu_group("⚡ Quick Starts", "yellow", [
         ("/connect", "First run? Start here to link an AI"),
         ("/chat hello", "Talk to your active provider"),
-        ("/fix .", "Let CORTANA audit this directory"),
+        ("/fix .", "Let JADE audit this directory"),
         ("/doctor", "Check everything is healthy"),
     ]))
     return grid
@@ -199,7 +199,7 @@ def get_main_menu_table():
     table.add_column("Command", style="cyan", justify="right")
     table.add_column("Description", style="white")
     
-    table.add_row("/chat", "Consult CORTANA for technical advice or code explanation")
+    table.add_row("/chat", "Consult JADE for technical advice or code explanation")
     table.add_row("/fix", "Autonomous research & repair loop for project bugs")
     table.add_row("/analyze", "Deep health audit: lines, complexity, and file hotspots")
     table.add_row("/analyze-file", "Focused security and performance audit on a single file")
@@ -208,7 +208,7 @@ def get_main_menu_table():
     table.add_row("/network", "Fing-style local network discovery and port scanning")
     table.add_row("/ssh", "Execute commands on remote servers via agentic SSH")
     table.add_row("/server", "Monitor local ports, process stats, and manage services")
-    table.add_row("/undo", "Safety rollback: Revert the last file change made by CORTANA")
+    table.add_row("/undo", "Safety rollback: Revert the last file change made by JADE")
     table.add_row("/dashboard", "Launch live multi-window system monitoring interface")
     table.add_row("/memory", "Search or manage the persistent vector knowledge base")
     table.add_row("/personality", "Switch between Professional, Sarcastic, Concise, or Mentor vibes")

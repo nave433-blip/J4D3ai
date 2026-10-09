@@ -1,4 +1,4 @@
-"""Plugin interfaces for Cortana's voice subsystem.
+"""Plugin interfaces for Jade's voice subsystem.
 
 Every stage of the voice pipeline is a swappable slot:
 
@@ -33,7 +33,7 @@ class AudioChunk:
 class VoiceProfile:
     """A named TTS voice profile. Profiles are data (JSON files under
     ``core/voice/profiles/``) so new ones — including a future licensed
-    Cortana voice — drop in without code changes."""
+    Jade voice — drop in without code changes."""
     name: str
     description: str
     engine: str  # which TTS engine this profile targets, e.g. "platform"
@@ -64,9 +64,9 @@ class AudioCapture(ABC):
 
 
 class WakeWordEngine(ABC):
-    """Detects a hotword such as 'Hey Cortana' in an audio stream."""
+    """Detects a hotword such as 'Hey Jade' in an audio stream."""
 
-    hotword: str = "Hey Cortana"
+    hotword: str = "Hey Jade"
 
     @abstractmethod
     def listen_once(self, capture: AudioCapture, timeout: float = 30.0) -> bool:

@@ -1,31 +1,31 @@
-# Cortana Connectors: Microsoft & Google
+# Jade Connectors: Microsoft & Google
 
-Cortana links your real accounts — no fake connections, ever. A connector
+Jade links your real accounts — no fake connections, ever. A connector
 reports `connected: False` with exact setup steps until a real token
-exists. **No credentials are ever shipped with Cortana**; you register
-your own OAuth apps and Cortana stores only *your* tokens.
+exists. **No credentials are ever shipped with Jade**; you register
+your own OAuth apps and Jade stores only *your* tokens.
 
 ## Microsoft (Microsoft Graph)
 
 ### One-time setup
 
 1. Go to https://portal.azure.com → **App registrations** → **New registration**.
-   - Name: `Cortana` (anything works).
+   - Name: `Jade` (anything works).
    - Supported account types: *Accounts in any organizational directory and
      personal Microsoft accounts* (so personal Outlook/OneDrive works).
-   - Redirect URI: leave blank — Cortana uses the **device-code flow**,
+   - Redirect URI: leave blank — Jade uses the **device-code flow**,
      which needs no redirect.
 2. Note the **Application (client) ID**.
 3. API permissions → Add → Microsoft Graph → **Delegated permissions**,
    add the scopes from the table below. (Some Teams scopes need admin
    consent on work/school tenants — see below.)
-4. In Cortana: `cortana settings set ms_client_id <application-id>`
-5. Link: `cortana connector connect outlook` (or `onedrive`, `teams`,
-   `onenote`). Cortana prints a `microsoft.com/devicelogin` code; approve
+4. In Jade: `jade settings set ms_client_id <application-id>`
+5. Link: `jade connector connect outlook` (or `onedrive`, `teams`,
+   `onenote`). Jade prints a `microsoft.com/devicelogin` code; approve
    it in your browser.
 
 All Microsoft connectors share one token file,
-`~/.cortana/ms_graph_token.json` (0600). Disconnecting any Microsoft
+`~/.jade/ms_graph_token.json` (0600). Disconnecting any Microsoft
 connector clears the shared session for all of them.
 
 ### Scope table
@@ -44,9 +44,9 @@ connector clears the shared session for all of them.
 2. Certificates & secrets → New client secret — copy it once.
 3. Subscriptions → your subscription → Access control (IAM) → Add role
    assignment → **Reader** → select your app.
-4. `cortana settings set azure_tenant_id <tenant>` and
-   `cortana settings set azure_client_id <app-id>`, then
-   `cortana connector connect azure` (secret is prompted for and goes to
+4. `jade settings set azure_tenant_id <tenant>` and
+   `jade settings set azure_client_id <app-id>`, then
+   `jade connector connect azure` (secret is prompted for and goes to
    the OS keyring, never into chat or config files).
 
 Deliberately **read-only**: list subscriptions, resource groups, VM power
@@ -55,11 +55,11 @@ misclick from deallocating your VMs.
 
 ### Token storage & revocation
 
-- Microsoft user tokens: `~/.cortana/ms_graph_token.json` (0600 file).
+- Microsoft user tokens: `~/.jade/ms_graph_token.json` (0600 file).
   Revoke at https://account.microsoft.com → Privacy → Apps and services.
-- Azure client secret: OS keyring (`cortana_connector_azure`).
+- Azure client secret: OS keyring (`jade_connector_azure`).
   Revoke by deleting the secret in the Azure portal.
-- Google tokens: OS keyring (`cortana_connector_<id>`).
+- Google tokens: OS keyring (`jade_connector_<id>`).
   Revoke at https://myaccount.google.com/permissions.
 
 ---
@@ -76,8 +76,8 @@ misclick from deallocating your VMs.
 2. **OAuth consent screen** → External → add yourself as a test user
    (while the app is in Testing mode, only test users can consent).
 3. **Credentials** → Create Credentials → OAuth client ID → **Desktop app**
-   → download the JSON → save as `~/.cortana/google_client.json`.
-4. `cortana connector connect gmail` (or `gdrive`, `gcal`, `gtasks`,
+   → download the JSON → save as `~/.jade/google_client.json`.
+4. `jade connector connect gmail` (or `gdrive`, `gcal`, `gtasks`,
    `gcontacts`, `gdocs`, `youtube`). A browser window opens for consent.
 
 ### Scope table
@@ -111,7 +111,7 @@ Windows-only helpers; on other platforms every function returns a clean
   back to PowerShell driving the built-in `Windows.UI.Notifications`
   API — no extra packages required.
 - **Run at login**: toggles one value,
-  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Cortana` — the
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Jade` — the
   *only* registry write this module performs.
 - **System summary**: OS build/display version from the registry plus
   `core/hardware_check.py`'s psutil data.
@@ -127,7 +127,7 @@ Windows-only helpers; on other platforms every function returns a clean
 - **Google Photos**: the Library API's useful scopes are restricted and
   Google rejects verification for general-purpose projects, so a Photos
   connector would fail for normal users. Not shipped rather than broken.
-- **Kernel drivers**: Cortana is a user-space Python app. Installing
+- **Kernel drivers**: Jade is a user-space Python app. Installing
   Windows drivers needs EV-signed `.sys`/`.inf` packages via
   `pnputil`/Device Manager with admin rights. `driver_info()` says this
   plainly instead of pretending.
@@ -139,4 +139,4 @@ Windows-only helpers; on other platforms every function returns a clean
   resumable upload sessions are not implemented yet (the connector says
   so instead of silently failing).
 - **Sending mail as someone else / app-only mail**: delegated
-  permissions only — Cortana sends as *you*.
+  permissions only — Jade sends as *you*.

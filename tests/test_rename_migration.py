@@ -1,6 +1,9 @@
 """Rename-migration tests: ~/.cortana -> ~/.jade (and legacy ~/.jarvis),
 legacy config keys, legacy keyring service/account fallback, and the
 deprecated `jarvis` / `cortana` CLI shims.
+
+NOTE: the legacy names below are deliberate — this file simulates users
+arriving from the old product names. Do not bulk-rename them.
 """
 import json
 import os
@@ -211,7 +214,7 @@ def test_jarvis_shim_notice_and_forward(tmp_path):
         pytest.skip("project venv not present")
     home = tmp_path / "home"
     home.mkdir()
-    env = dict(os.environ, HOME=str(home), CORTANA_SKIP_STARTUP="1")
+    env = dict(os.environ, HOME=str(home), JADE_SKIP_STARTUP="1")
     code = (
         "import sys; sys.argv = ['jarvis'];"
         "import cli;"
@@ -234,7 +237,7 @@ def test_cortana_shim_notice_and_forward(tmp_path):
         pytest.skip("project venv not present")
     home = tmp_path / "home"
     home.mkdir()
-    env = dict(os.environ, HOME=str(home), CORTANA_SKIP_STARTUP="1")
+    env = dict(os.environ, HOME=str(home), JADE_SKIP_STARTUP="1")
     code = (
         "import sys; sys.argv = ['cortana'];"
         "import cli;"

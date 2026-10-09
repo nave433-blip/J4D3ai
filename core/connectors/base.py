@@ -1,10 +1,10 @@
-"""Generic connector framework for Cortana.
+"""Generic connector framework for Jade.
 
 A connector links an external app account (Google Drive, Gmail, Outlook,
 Calendar, …) so the chat layer can call simple, confirmed actions on it.
 
 Rules:
-- Tokens live in the OS keyring under ``cortana_connector_<id>`` — never in
+- Tokens live in the OS keyring under ``jade_connector_<id>`` — never in
   plaintext config, never transmitted over P2P.
 - :meth:`Connector.status` must be honest: ``connected: False`` with a clear
   ``needs`` message until a real token exists. No faked connections.
@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import keyring
 
-KEYRING_PREFIX = "cortana_connector_"
+KEYRING_PREFIX = "jade_connector_"
 
 
 class Connector:

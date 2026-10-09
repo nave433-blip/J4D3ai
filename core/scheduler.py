@@ -1,10 +1,10 @@
-"""In-Cortana persistent task scheduler.
+"""In-Jade persistent task scheduler.
 
 Runs scheduled jobs in-process on a background thread — no system cron,
 no new dependencies. Jobs and run history survive restarts.
 
-Job store: ``~/.cortana/scheduler_jobs.json`` (0600, atomic writes).
-Run log:   ``~/.cortana/scheduler_runs.jsonl`` (append-only, every run logged).
+Job store: ``~/.jade/scheduler_jobs.json`` (0600, atomic writes).
+Run log:   ``~/.jade/scheduler_runs.jsonl`` (append-only, every run logged).
 
 Supported schedules:
   - one-shot:   {"kind": "once", "at": "<ISO datetime>"}
@@ -44,8 +44,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-JOBS_FILE = Path(os.path.expanduser("~/.cortana/scheduler_jobs.json"))
-RUNS_FILE = Path(os.path.expanduser("~/.cortana/scheduler_runs.jsonl"))
+JOBS_FILE = Path(os.path.expanduser("~/.jade/scheduler_jobs.json"))
+RUNS_FILE = Path(os.path.expanduser("~/.jade/scheduler_runs.jsonl"))
 MISSED_GRACE_SECONDS = 120
 _TICK_SECONDS = 15
 _MAX_WORKERS = 2
@@ -240,7 +240,7 @@ class Scheduler:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._pool = ThreadPoolExecutor(max_workers=_MAX_WORKERS,
-                                        thread_name_prefix="cortana-sched")
+                                        thread_name_prefix="jade-sched")
         self._detect_missed()
 
     # -- persistence ------------------------------------------------------
@@ -272,7 +272,7 @@ class Scheduler:
             if (now - nxt).total_seconds() > MISSED_GRACE_SECONDS:
                 self.log_run(job["id"], job["name"], job["action"],
                              "missed",
-                             f"missed scheduled run at {job['next_run']} (Cortana was not running)")
+                             f"missed scheduled run at {job['next_run']} (Jade was not running)")
                 nxt2 = next_occurrence(job["schedule"], now)
                 if nxt2 is None:  # one-shot in the past
                     job["enabled"] = False
@@ -409,7 +409,7 @@ class Scheduler:
             return
         self._stop.clear()
         self._thread = threading.Thread(target=self._loop, daemon=True,
-                                        name="cortana-scheduler")
+                                        name="jade-scheduler")
         self._thread.start()
 
     def stop(self) -> None:

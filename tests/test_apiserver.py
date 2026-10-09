@@ -1,7 +1,7 @@
 """Tests for core/apiserver.py — OpenAI-compatible chat-completions server.
 
 The server runs on an ephemeral loopback port in a thread; the token comes
-from the CORTANA_API_TOKEN env var so no token file is touched.
+from the JADE_API_TOKEN env var so no token file is touched.
 ``core.apiserver.think_structured`` is monkeypatched — no real model calls.
 """
 import http.client
@@ -16,7 +16,7 @@ from core.apiserver import start_api_background
 
 @pytest.fixture()
 def api_env(monkeypatch):
-    monkeypatch.setenv("CORTANA_API_TOKEN", "test-token-123")
+    monkeypatch.setenv("JADE_API_TOKEN", "test-token-123")
     yield
 
 
@@ -75,7 +75,7 @@ def test_chat_completions_happy_path(server, monkeypatch):
     fake = _stub_think(monkeypatch, {"ok": True, "text": "stubbed reply",
                                     "provider": "stub"})
     status, body = _req(server, "POST", "/v1/chat/completions", {
-        "model": "cortana-default",
+        "model": "jade-default",
         "messages": [{"role": "user", "content": "hello"},
                      {"role": "assistant", "content": "hi"},
                      {"role": "user", "content": "again"}],
@@ -83,7 +83,7 @@ def test_chat_completions_happy_path(server, monkeypatch):
     assert status == 200
     assert body["object"] == "chat.completion"
     assert body["id"].startswith("chatcmpl-")
-    assert body["model"] == "cortana-default"
+    assert body["model"] == "jade-default"
     assert body["choices"][0]["message"] == {"role": "assistant",
                                             "content": "stubbed reply"}
     assert body["choices"][0]["finish_reason"] == "stop"
@@ -111,7 +111,7 @@ def test_chat_wrong_auth(server):
 def test_chat_stream_rejected(server, monkeypatch):
     _stub_think(monkeypatch, {"ok": True, "text": "nope", "provider": "stub"})
     status, body = _req(server, "POST", "/v1/chat/completions", {
-        "model": "cortana-default", "stream": True,
+        "model": "jade-default", "stream": True,
         "messages": [{"role": "user", "content": "hi"}]})
     assert status == 400
     assert body["error"]["message"] == "streaming not supported"
@@ -126,7 +126,7 @@ def test_chat_malformed_json(server):
 
 def test_chat_empty_messages_rejected(server):
     status, body = _req(server, "POST", "/v1/chat/completions",
-                        {"model": "cortana-default", "messages": []})
+                        {"model": "jade-default", "messages": []})
     assert status == 400
     assert "error" in body
 
@@ -134,12 +134,12 @@ def test_chat_empty_messages_rejected(server):
 def test_chat_think_failure_is_502(server, monkeypatch):
     _stub_think(monkeypatch, {"ok": False, "error": "provider exploded"})
     status, body = _req(server, "POST", "/v1/chat/completions", {
-        "model": "cortana-default",
+        "model": "jade-default",
         "messages": [{"role": "user", "content": "hi"}]})
     assert status == 502
     assert "provider exploded" in body["error"]["message"]
 
 
 def test_token_from_env_not_file(server):
-    # Fixture sets CORTANA_API_TOKEN; the request already proved it works.
+    # Fixture sets JADE_API_TOKEN; the request already proved it works.
     assert server["token"] == "test-token-123"

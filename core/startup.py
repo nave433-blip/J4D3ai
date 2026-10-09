@@ -215,7 +215,7 @@ def startup_check_and_login(auto: bool = False, providers: Optional[List[str]] =
         except Exception as e:
             console.print(f"[dim][red]! P2P Server failed: {e}[/red][/dim]")
 
-    console.print(Panel(f"CORTANA System Initialization: Verifying connectivity to {len(provs)} providers...", title="Startup", border_style="cyan"))
+    console.print(Panel(f"JADE System Initialization: Verifying connectivity to {len(provs)} providers...", title="Startup", border_style="cyan"))
 
     
     for p in provs:

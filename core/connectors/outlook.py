@@ -1,7 +1,7 @@
 """Outlook / Microsoft 365 connector via Microsoft Graph.
 
-Bring-your-own Azure app registration: set ``ms_client_id`` in Cortana's
-settings (``cortana settings set ms_client_id <id>``) — any "personal
+Bring-your-own Azure app registration: set ``ms_client_id`` in Jade's
+settings (``jade settings set ms_client_id <id>``) — any "personal
 Microsoft account" multi-tenant app works. Shares the Microsoft token file
 with the other Microsoft connectors (see core.connectors.graph).
 

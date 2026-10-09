@@ -1,12 +1,12 @@
-/* Cortana for VS Code — reference scaffold (NOT published to the Marketplace).
+/* Jade for VS Code — reference scaffold (NOT published to the Marketplace).
  *
  * Two commands:
- *   - cortana.ask                — ask Cortana about the current file/selection,
+ *   - jade.ask                — ask Jade about the current file/selection,
  *                                  reply shown in a webview panel.
- *   - cortana.completeWithContext — send the file (capped) to Cortana and insert
+ *   - jade.completeWithContext — send the file (capped) to Jade and insert
  *                                  the reply at the cursor.
  *
- * Both commands talk to the Cortana API server (core/apiserver.py) over its
+ * Both commands talk to the Jade API server (core/apiserver.py) over its
  * OpenAI-compatible POST /v1/chat/completions endpoint with a Bearer token.
  * The server is NOT bundled or auto-started: it must already be running on
  * localhost. Errors say so plainly instead of inventing answers.
@@ -22,7 +22,7 @@ interface ChatMessage {
 }
 
 function getConfig(): { apiUrl: string; apiToken: string } {
-  const cfg = vscode.workspace.getConfiguration("cortana");
+  const cfg = vscode.workspace.getConfiguration("jade");
   const apiUrl = (cfg.get<string>("apiUrl") || "http://127.0.0.1:18789").replace(
     /\/+$/,
     ""
@@ -36,7 +36,7 @@ function buildMessages(instruction: string): ChatMessage[] | null {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showWarningMessage(
-      "Cortana: no active editor — open a file first."
+      "Jade: no active editor — open a file first."
     );
     return null;
   }
@@ -53,7 +53,7 @@ function buildMessages(instruction: string): ChatMessage[] | null {
     {
       role: "system",
       content:
-        "You are Cortana, a local AI coding assistant. Answer concisely. " +
+        "You are Jade, a local AI coding assistant. Answer concisely. " +
         "When asked to complete code, return only the code to insert, no prose.",
     },
     {
@@ -65,13 +65,13 @@ function buildMessages(instruction: string): ChatMessage[] | null {
   ];
 }
 
-async function callCortana(messages: ChatMessage[]): Promise<string> {
+async function callJade(messages: ChatMessage[]): Promise<string> {
   const { apiUrl, apiToken } = getConfig();
   if (!apiToken) {
     throw new Error(
-      "Cortana: no API token set. Set cortana.apiToken in settings " +
-        "(same value as the server's CORTANA_API_TOKEN env var or " +
-        "~/.cortana/api_token)."
+      "Jade: no API token set. Set jade.apiToken in settings " +
+        "(same value as the server's JADE_API_TOKEN env var or " +
+        "~/.jade/api_token)."
     );
   }
   let resp: Response;
@@ -82,20 +82,20 @@ async function callCortana(messages: ChatMessage[]): Promise<string> {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiToken}`,
       },
-      body: JSON.stringify({ model: "cortana-default", messages }),
+      body: JSON.stringify({ model: "jade-default", messages }),
     });
   } catch (e) {
     throw new Error(
-      "Cortana: cannot reach the API server at " +
-        `${apiUrl}. Start it first (e.g. CORTANA_API_TOKEN=... ` +
-        `python -m core.apiserver --port 18789 from the cortana repo). ` +
+      "Jade: cannot reach the API server at " +
+        `${apiUrl}. Start it first (e.g. JADE_API_TOKEN=... ` +
+        `python -m core.apiserver --port 18789 from the jade repo). ` +
         `Details: ${String(e)}`
     );
   }
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
     throw new Error(
-      `Cortana: API server returned HTTP ${resp.status}. ${body.slice(0, 200)}`
+      `Jade: API server returned HTTP ${resp.status}. ${body.slice(0, 200)}`
     );
   }
   const data = (await resp.json()) as {
@@ -103,11 +103,11 @@ async function callCortana(messages: ChatMessage[]): Promise<string> {
     error?: { message?: string };
   };
   if (data.error) {
-    throw new Error(`Cortana: ${data.error.message || "unknown API error"}`);
+    throw new Error(`Jade: ${data.error.message || "unknown API error"}`);
   }
   const content = data.choices?.[0]?.message?.content;
   if (!content) {
-    throw new Error("Cortana: empty reply from the API server.");
+    throw new Error("Jade: empty reply from the API server.");
   }
   return content;
 }
@@ -120,21 +120,21 @@ function escapeHtml(s: string): string {
 
 function showAnswerPanel(question: string, answer: string): void {
   const panel = vscode.window.createWebviewPanel(
-    "cortanaAnswer",
-    "Cortana answer",
+    "jadeAnswer",
+    "Jade answer",
     vscode.ViewColumn.Beside,
     {}
   );
   panel.webview.html = `<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>body{font-family:system-ui,sans-serif;padding:12px;line-height:1.5}
 pre{background:#1e1e1e;padding:10px;border-radius:6px;overflow:auto}</style>
-</head><body><h3>Cortana</h3><p><i>${escapeHtml(question)}</i></p>
+</head><body><h3>Jade</h3><p><i>${escapeHtml(question)}</i></p>
 <hr><pre>${escapeHtml(answer)}</pre></body></html>`;
 }
 
 async function askCommand(): Promise<void> {
   const question = await vscode.window.showInputBox({
-    prompt: "Ask Cortana (current file/selection is sent as context)",
+    prompt: "Ask Jade (current file/selection is sent as context)",
     placeHolder: "e.g. explain this function",
   });
   if (!question) {
@@ -145,10 +145,10 @@ async function askCommand(): Promise<void> {
     return;
   }
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: "Cortana is thinking…" },
+    { location: vscode.ProgressLocation.Notification, title: "Jade is thinking…" },
     async () => {
       try {
-        const answer = await callCortana(messages);
+        const answer = await callJade(messages);
         showAnswerPanel(question, answer);
       } catch (e) {
         vscode.window.showErrorMessage(String(e instanceof Error ? e.message : e));
@@ -160,7 +160,7 @@ async function askCommand(): Promise<void> {
 async function completeCommand(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    vscode.window.showWarningMessage("Cortana: no active editor.");
+    vscode.window.showWarningMessage("Jade: no active editor.");
     return;
   }
   const messages = buildMessages(
@@ -170,10 +170,10 @@ async function completeCommand(): Promise<void> {
     return;
   }
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: "Cortana is completing…" },
+    { location: vscode.ProgressLocation.Notification, title: "Jade is completing…" },
     async () => {
       try {
-        const completion = await callCortana(messages);
+        const completion = await callJade(messages);
         await editor.edit((edit) => {
           editor.selections.forEach((sel) => edit.insert(sel.active, completion));
         });
@@ -186,8 +186,8 @@ async function completeCommand(): Promise<void> {
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand("cortana.ask", askCommand),
-    vscode.commands.registerCommand("cortana.completeWithContext", completeCommand)
+    vscode.commands.registerCommand("jade.ask", askCommand),
+    vscode.commands.registerCommand("jade.completeWithContext", completeCommand)
   );
 }
 

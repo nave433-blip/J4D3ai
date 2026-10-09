@@ -1,7 +1,7 @@
 """Derive all app icon/splash assets from the 1600x1600 master artwork.
 
 Run:  python3 scripts/make_icons.py
-Inputs:  assets-src/cortana-icon-master.png (1600x1600, generated artwork)
+Inputs:  assets-src/jade-icon-master.png (1600x1600, generated artwork)
 Outputs: assets/icon.png (1024), assets/adaptive-icon.png (1024, art in
          central 66% safe zone), assets/splash.png (1284x2778),
          assets/favicon.png (48).
@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "assets-src" / "cortana-icon-master.png"
+SRC = ROOT / "assets-src" / "jade-icon-master.png"
 ASSETS = ROOT / "assets"
 
 BG = (8, 8, 26, 255)  # dark navy matching the artwork background

@@ -1,4 +1,4 @@
-"""Round C: sign-in + Cortana Account — honesty, keyring storage, local record."""
+"""Round C: sign-in + Jade Account — honesty, keyring storage, local record."""
 import json
 
 import pytest
@@ -24,7 +24,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr("keyring.get_password", _get)
     monkeypatch.setattr("keyring.set_password", _set)
     monkeypatch.setattr("keyring.delete_password", _del)
-    import core.cortana_account as ca_mod
+    import core.jade_account as ca_mod
     monkeypatch.setattr(ca_mod, "ACCOUNT_FILE", tmp_path / "account.json")
     return tmp_path
 
@@ -56,7 +56,7 @@ def test_signout_when_not_signed_in(isolated):
 def test_signin_stores_token_and_links_account(isolated, monkeypatch):
     import core.signin as si_mod
     from core.signin import signin, is_signed_in, get_signin
-    from core.cortana_account import linked_providers
+    from core.jade_account import linked_providers
 
     fake_tok = {"access_token": "tok123", "account": "dev"}
 
@@ -80,7 +80,7 @@ def test_signin_stores_token_and_links_account(isolated, monkeypatch):
 def test_signout_clears_token_and_unlinks(isolated, monkeypatch):
     import core.signin as si_mod
     from core.signin import signin, signout, is_signed_in
-    from core.cortana_account import linked_providers
+    from core.jade_account import linked_providers
 
     monkeypatch.setattr(si_mod, "_github_device_flow",
                         lambda cid, scopes: {"access_token": "t", "account": "dev"})
@@ -94,7 +94,7 @@ def test_signout_clears_token_and_unlinks(isolated, monkeypatch):
 
 
 def test_account_record(isolated):
-    from core.cortana_account import (get_account, set_display_name,
+    from core.jade_account import (get_account, set_display_name,
                                       link_signin, unlink_signin)
     doc = get_account()
     assert doc["linked"] == {}
@@ -110,7 +110,7 @@ def test_account_record(isolated):
 
 def test_account_doc_exists_and_is_honest():
     import pathlib
-    doc = pathlib.Path(__file__).parent.parent / "docs" / "CORTANA_ACCOUNT.md"
+    doc = pathlib.Path(__file__).parent.parent / "docs" / "JADE_ACCOUNT.md"
     assert doc.exists()
     text = doc.read_text()
     assert "not a shipped service" in text

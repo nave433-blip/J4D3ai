@@ -1,13 +1,13 @@
-"""Shared Microsoft Graph client for Cortana's Microsoft connectors.
+"""Shared Microsoft Graph client for Jade's Microsoft connectors.
 
 Bring-your-own Azure app registration: the user registers an app at
 https://portal.azure.com and stores the application (client) id with
-``cortana settings set ms_client_id <id>``. No Microsoft credentials are
-ever shipped with Cortana.
+``jade settings set ms_client_id <id>``. No Microsoft credentials are
+ever shipped with Jade.
 
 Auth: OAuth2 device-code flow (works on headless/SSH machines where a
 localhost browser redirect is awkward) plus refresh-token flow. Tokens are
-cached as JSON in ``~/.cortana/`` with 0600 permissions — never in
+cached as JSON in ``~/.jade/`` with 0600 permissions — never in
 plaintext config, never transmitted over P2P.
 
 Features: paged GET helper (follows ``@odata.nextLink``), 429
@@ -280,7 +280,7 @@ class GraphConnectorBase:
         if not self._client_id():
             return ("Not configured: register an app at https://portal.azure.com "
                     "(personal Microsoft accounts supported), then run "
-                    "`cortana settings set ms_client_id <application-id>`.")
+                    "`jade settings set ms_client_id <application-id>`.")
         missing = ", ".join(getattr(self, "scopes", []))
         return (f"Run `/connector connect {self.id}` to grant these "
                 f"permissions: {missing}.")

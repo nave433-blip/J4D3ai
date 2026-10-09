@@ -1,8 +1,8 @@
-"""Cortana thin client for low-resource nodes.
+"""Jade thin client for low-resource nodes.
 
 A minimal-footprint way to use LLM power from a weak machine (old laptop,
 Raspberry Pi, tiny VM): instead of running models locally, the thin client
-talks to a remote Ollama server OR proxies through a "fat" Cortana peer over
+talks to a remote Ollama server OR proxies through a "fat" Jade peer over
 the existing P2P layer, which runs the model and streams tokens back.
 
 Deliberately light: stdlib + requests + rich + psutil only. It never imports
@@ -10,7 +10,7 @@ core.brain, vector memory, or any heavy provider SDK. It never ships API
 keys to peers — peer auth uses the existing P2P token, and remote Ollama
 hosts use user-configured per-host credentials only.
 
-Entry point: `cortana-thin` (console script) or `python -m tools.ollama_thin`.
+Entry point: `jade-thin` (console script) or `python -m tools.ollama_thin`.
 """
 
 import json
@@ -85,7 +85,7 @@ def fit_explanation(model: str, model_bytes: int, free_bytes: int) -> str:
 
 
 class ThinClient:
-    """Chat/generate against a remote Ollama host or a fat Cortana peer."""
+    """Chat/generate against a remote Ollama host or a fat Jade peer."""
 
     def __init__(self, remote_host: Optional[str] = None,
                  host_token: Optional[str] = None,
@@ -111,9 +111,9 @@ class ThinClient:
             return {"ok": False, "host": host, "error": str(e)}
 
     def probe_peers(self, timeout: float = 1.5) -> List[Dict]:
-        from core.p2p import scan_for_cortana_peers
+        from core.p2p import scan_for_jade_peers
         try:
-            return [{"ip": ip} for ip in scan_for_cortana_peers(timeout=timeout)]
+            return [{"ip": ip} for ip in scan_for_jade_peers(timeout=timeout)]
         except Exception:
             return []
 
@@ -233,7 +233,7 @@ def _guarded_pull(client: ThinClient, model: str, model_bytes: int) -> None:
 
 
 def main() -> None:
-    console.print(Panel("[bold cyan]🪶 CORTANA THIN CLIENT[/bold cyan]\n"
+    console.print(Panel("[bold cyan]🪶 JADE THIN CLIENT[/bold cyan]\n"
                         "Minimal footprint — models run elsewhere, tokens stream here.",
                         border_style="cyan"))
     res = detect_resources()
@@ -275,7 +275,7 @@ def main() -> None:
             peers = client.probe_peers()
             if not peers:
                 console.print("[yellow]No fat peers found on the LAN. "
-                              "Is another Cortana running with P2P enabled?[/yellow]")
+                              "Is another Jade running with P2P enabled?[/yellow]")
             else:
                 for p in peers:
                     console.print(f"  🖥️ {p['ip']}")

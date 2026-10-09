@@ -5,7 +5,7 @@ Modes:
   - ``always_listening``: loop record -> transcribe -> think -> speak until
     the user says a stop phrase or interrupts.
 
-Barge-in: while Cortana is speaking, the VAD watches the microphone; when
+Barge-in: while Jade is speaking, the VAD watches the microphone; when
 speech is detected, the in-progress utterance is stopped (``speak_handle``
 is killable) and the user's interruption becomes the next turn.
 """

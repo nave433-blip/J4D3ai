@@ -4,7 +4,7 @@ Linux-first (keeps macOS working). Stdlib only — no new dependencies.
 
 Capabilities
 ------------
-- Per-project config at ``<root>/.cortana/config.json`` (model, sandbox policy,
+- Per-project config at ``<root>/.jade/config.json`` (model, sandbox policy,
   extra ignore patterns).
 - Project file enumeration that respects ``.gitignore``: uses ``git ls-files``
   (``--cached --others --exclude-standard``) when ``git`` is available and the
@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover - rich is a hard dep of the CLI anyway
     Panel = None  # type: ignore
 
 
-CONFIG_DIR = ".cortana"
+CONFIG_DIR = ".jade"
 CONFIG_FILE = "config.json"
 CHECKPOINTS_DIR = "checkpoints"
 
@@ -101,7 +101,7 @@ def _default_project_config() -> Dict:
 
 
 def load_project_config(root: str) -> Dict:
-    """Read ``<root>/.cortana/config.json`` merged over defaults.
+    """Read ``<root>/.jade/config.json`` merged over defaults.
 
     Missing file or corrupt JSON yields the defaults (never raises).
     The returned dict is an isolated deep copy.
@@ -125,7 +125,7 @@ def load_project_config(root: str) -> Dict:
 
 
 def save_project_config(root: str, cfg: Dict) -> Dict:
-    """Write ``cfg`` to ``<root>/.cortana/config.json``. Returns ok/error."""
+    """Write ``cfg`` to ``<root>/.jade/config.json``. Returns ok/error."""
     try:
         cfg_dir = os.path.join(root, CONFIG_DIR)
         os.makedirs(cfg_dir, exist_ok=True)
@@ -247,7 +247,7 @@ def iter_project_files(root: str, extra_ignore: Sequence[str] = ()) -> List[str]
     ``.gitignore`` support (see module docstring for its limitations).
 
     Always skips: ``.git/``, ``__pycache__/``, ``node_modules/``,
-    ``.cortana/`` (config + checkpoints), project-config ``ignore`` entries
+    ``.jade/`` (config + checkpoints), project-config ``ignore`` entries
     and ``extra_ignore`` patterns, files >256KB, binary files (null-byte
     sniff). Capped at 2000 files.
     """
@@ -324,7 +324,7 @@ def build_context(root: str, max_chars: int = 60000) -> str:
 # ---------------------------------------------------------------------------
 
 class CheckpointManager:
-    """Snapshot / rewind / prune project files under ``<root>/.cortana/checkpoints/``."""
+    """Snapshot / rewind / prune project files under ``<root>/.jade/checkpoints/``."""
 
     def __init__(self, root: str):
         self.root = os.path.abspath(root)

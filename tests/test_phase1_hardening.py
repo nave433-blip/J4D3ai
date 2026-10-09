@@ -26,7 +26,7 @@ import types
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-os.environ.setdefault("CORTANA_SKIP_STARTUP", "1")
+os.environ.setdefault("JADE_SKIP_STARTUP", "1")
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 VENV_PY = os.path.join(REPO_ROOT, ".audit-venv", "bin", "python")
@@ -67,7 +67,7 @@ def test_p2p_tls_socketpair_handshake(tmp_path):
 
     cert = str(tmp_path / "p2p.crt")
     key = str(tmp_path / "p2p.key")
-    p2p.generate_self_signed_cert(cert, key, hostname="cortana-test")
+    p2p.generate_self_signed_cert(cert, key, hostname="jade-test")
     assert os.path.exists(cert) and os.path.exists(key)
 
     server_ctx = p2p._build_ssl_context(cert, key)
@@ -87,7 +87,7 @@ def test_p2p_tls_socketpair_handshake(tmp_path):
     client_ctx = ssl.create_default_context()
     client_ctx.check_hostname = False
     client_ctx.verify_mode = ssl.CERT_NONE
-    tls_b = client_ctx.wrap_socket(b, server_hostname="cortana-test")
+    tls_b = client_ctx.wrap_socket(b, server_hostname="jade-test")
     try:
         tls_b.sendall(b"ping")
         assert tls_b.recv(4) == b"pong"
@@ -326,7 +326,7 @@ def _smoke_env(tmp_path):
     env = dict(os.environ)
     env["HOME"] = str(home)
     env["PATH"] = str(bindir) + os.pathsep + env.get("PATH", "")
-    env["CORTANA_SKIP_STARTUP"] = "1"
+    env["JADE_SKIP_STARTUP"] = "1"
     return env
 
 
@@ -337,7 +337,7 @@ def test_cli_help_smoke(tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert r.returncode == 0, r.stderr[-2000:]
-    assert "CORTANA" in r.stdout
+    assert "JADE" in r.stdout
 
 
 def test_cli_menu_smoke(tmp_path):
@@ -348,7 +348,7 @@ def test_cli_menu_smoke(tmp_path):
         capture_output=True, text=True, timeout=60,
     )
     assert r.returncode == 0, r.stderr[-2000:]
-    assert "CORTANA SYSTEM INTERFACE" in r.stdout
+    assert "JADE SYSTEM INTERFACE" in r.stdout
 
 
 def test_cli_startup_eof_exits_cleanly(tmp_path):

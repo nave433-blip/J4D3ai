@@ -1,4 +1,4 @@
-"""Cross-device session handoff: hand a live session to another Cortana node.
+"""Cross-device session handoff: hand a live session to another Jade node.
 
 `/handoff <peer-ip> [note]` packages recent conversation context (from the
 time-travel tree), open tasks, and your note — and sends it to the peer.
@@ -56,7 +56,7 @@ def build_handoff(note: str = "", context_turns: int = 12,
     except Exception:
         context, branch = "", "main"
     payload = {
-        "format": "cortana-handoff/1",
+        "format": "jade-handoff/1",
         "from": _node_name(),
         "ts": time.time(),
         "branch": branch,
@@ -73,9 +73,9 @@ def build_handoff(note: str = "", context_turns: int = 12,
 def _node_name() -> str:
     try:
         from core.config import load_config
-        return load_config().get("cortana_name", "Cortana")
+        return load_config().get("jade_name", "Jade")
     except Exception:
-        return "Cortana"
+        return "Jade"
 
 
 def send_handoff(peer_ip: str, note: str = "", port: int = 11435,
@@ -112,7 +112,7 @@ def _handoffs_dir() -> Path:
 
 def handle_session_handoff(peer_ip: str, payload: Dict[str, Any]):
     """Receiver side (called from the P2P handler). Returns (status, ctype, body)."""
-    if not isinstance(payload, dict) or payload.get("format") != "cortana-handoff/1":
+    if not isinstance(payload, dict) or payload.get("format") != "jade-handoff/1":
         return 400, "text/plain", b"bad handoff payload"
     hit = _contains_forbidden(payload)
     if hit:

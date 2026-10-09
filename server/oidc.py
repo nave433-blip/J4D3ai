@@ -50,7 +50,7 @@ def _b64url_decode(data: str) -> bytes:
 
 
 def _default_jwks_fetch(url: str) -> dict:
-    req = urllib.request.Request(url, headers={"User-Agent": "cortana-server/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "jade-server/0.1"})
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read().decode())
 
@@ -150,7 +150,7 @@ def github_user_from_code(code: str, client_id: str, client_secret: str,
     get = http_get or _get_json
     user = get("https://api.github.com/user", {"Authorization": f"Bearer {access_token}",
                                                "Accept": "application/vnd.github+json",
-                                               "User-Agent": "cortana-server/0.1"},
+                                               "User-Agent": "jade-server/0.1"},
                timeout=timeout)
     if "id" not in user:
         raise OIDCError("github user lookup failed")

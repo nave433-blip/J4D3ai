@@ -1,11 +1,11 @@
 """Named profiles: work, personal, etc.
 
 Each profile holds a *settings override subset* plus an identity block and
-its own memory scope. The global config in ``~/.cortana/config.json`` stays
+its own memory scope. The global config in ``~/.jade/config.json`` stays
 the source of truth; the active profile's overrides layer on top whenever
 :func:`core.settings.get_setting` is used.
 
-Profiles live in ``~/.cortana/profiles/<name>.json``. The built-in
+Profiles live in ``~/.jade/profiles/<name>.json``. The built-in
 ``default`` profile is implicit (no file needed).
 
 GUI hook (for the desktop round): ``list_profiles()``,
@@ -163,7 +163,7 @@ def set_profile_setting(name: str, key: str, value: Any) -> Dict[str, Any]:
     if entry is None:
         return {"ok": False, "error": f"Unknown setting '{key}'."}
     if name == DEFAULT_PROFILE:
-        return {"ok": False, "error": "The 'default' profile has no overrides — use `cortana settings set` instead."}
+        return {"ok": False, "error": "The 'default' profile has no overrides — use `jade settings set` instead."}
     try:
         doc = load_profile(name)
     except KeyError as e:
@@ -183,7 +183,7 @@ def memory_scope() -> str:
 
 
 def profiles_table() -> Table:
-    table = Table(title="Cortana Profiles", border_style="cyan")
+    table = Table(title="Jade Profiles", border_style="cyan")
     table.add_column("Profile", style="cyan", no_wrap=True)
     table.add_column("Active", style="green")
     table.add_column("Overrides", style="white")

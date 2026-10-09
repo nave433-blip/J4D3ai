@@ -19,7 +19,7 @@ SCOPES = [
     'https://www.googleapis.com/auth/generative-language' # Access to Gemini
 ]
 
-KEYRING_SERVICE = "cortana_google_auth"
+KEYRING_SERVICE = "jade_google_auth"
 # Pre-rename service name: read for compatibility, never written.
 _KEYRING_SERVICE_LEGACY = "jarvis_google_auth"
 TOKEN_KEY = "google_token"
@@ -62,10 +62,10 @@ class GoogleAuth:
         from google_auth_oauthlib.flow import InstalledAppFlow
         console.print(Panel("🌐 [bold cyan]Initiating Google Login Flow[/bold cyan]\n\nA browser window will open. Please login with your Google account to link your AI services.", border_style="cyan"))
         
-        # Look for client secrets at ~/.cortana/google_client.json
+        # Look for client secrets at ~/.jade/google_client.json
         client_secrets_path = str(CONFIG_DIR / "google_client.json")
         if not os.path.exists(client_secrets_path):
-            console.print("[yellow]⚠️ Warning: Google OAuth Client Secrets not found at ~/.cortana/google_client.json[/yellow]")
+            console.print("[yellow]⚠️ Warning: Google OAuth Client Secrets not found at ~/.jade/google_client.json[/yellow]")
             console.print("Please provide your Google Cloud Console Client ID and Secret.")
             client_id = console.input("Client ID: ").strip()
             client_secret = console.input("Client Secret: ").strip()
@@ -119,7 +119,7 @@ class GoogleAuth:
         if not creds: return
         
         email = GoogleAuth.get_user_email(creds)
-        console.print(Panel(f"🚀 [bold cyan]Starting AI Registration Orchestrator[/bold cyan]\n\nLogged in as: [bold green]{email}[/bold green]\n\nCORTANA will now open registration pages for all major AI services. \n[bold yellow]Requirement:[/bold yellow] Click 'Continue with Google' on each page, create your API key, and paste it back here.", border_style="cyan"))
+        console.print(Panel(f"🚀 [bold cyan]Starting AI Registration Orchestrator[/bold cyan]\n\nLogged in as: [bold green]{email}[/bold green]\n\nJADE will now open registration pages for all major AI services. \n[bold yellow]Requirement:[/bold yellow] Click 'Continue with Google' on each page, create your API key, and paste it back here.", border_style="cyan"))
 
         from core.services import set_api_key
         
@@ -153,4 +153,4 @@ class GoogleAuth:
             else:
                 console.print(f"[yellow]⏩ Skipped {info['display']}.[/yellow]")
 
-        console.print(Panel("🏁 [bold green]All targeted accounts processed![/bold green]\n\nYour CORTANA ecosystem is now fully powered and authenticated.", border_style="green"))
+        console.print(Panel("🏁 [bold green]All targeted accounts processed![/bold green]\n\nYour JADE ecosystem is now fully powered and authenticated.", border_style="green"))

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deprecated alias: 'jarvis' was renamed to 'cortana'.
-echo "Note: 'jarvis' has been renamed to 'cortana'. Please use 'cortana' going forward." >&2
+# Deprecated alias: 'jarvis' was renamed to 'jade'.
+echo "Note: 'jarvis' has been renamed to 'jade'. Please use 'jade' going forward." >&2
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-exec "$DIR/cortana" "$@"
+exec "$DIR/jade" "$@"

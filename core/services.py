@@ -20,7 +20,7 @@ from rich.console import Console
 console = Console()
 
 API_KEYS_KEY = "api_keys"
-KEYRING_SERVICE_NAME = "cortana_cli"
+KEYRING_SERVICE_NAME = "jade_cli"
 # Pre-rename service name: read for compatibility, never written.
 _KEYRING_SERVICE_NAME_LEGACY = "jarvis_cli"
 DEFAULT_MODELS_KEY = "default_models"

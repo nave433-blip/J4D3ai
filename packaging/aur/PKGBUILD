@@ -6,10 +6,10 @@
 # submit it to the AUR. Do not claim Arch support until that happens.
 # ============================================================================
 
-pkgname=cortana
+pkgname=jade
 pkgver=0.1.7
 pkgrel=1
-pkgdesc="Cortana: local AI assistant for macOS and Linux"
+pkgdesc="Jade: local AI assistant for macOS and Linux"
 arch=('any')
 url="https://github.com/nave433-blip/jarvis-dev"
 license=('MIT')

@@ -24,14 +24,14 @@ def isolated(tmp_path, monkeypatch):
 def test_build_handoff_has_no_credentials(isolated):
     p = handoff.build_handoff(note="test note", open_tasks=["task one"])
     assert handoff._contains_forbidden(p) is None
-    assert p["format"] == "cortana-handoff/1"
+    assert p["format"] == "jade-handoff/1"
     assert "api_key" not in json.dumps(p).lower()
 
 
 def test_build_handoff_rejects_credential_fields(isolated):
     # The _contains_forbidden guard must catch key-like fields at any depth,
     # and build_handoff must refuse to produce such a payload.
-    evil = {"format": "cortana-handoff/1", "nested": {"list": [{"api_key": "sk-x"}]}}
+    evil = {"format": "jade-handoff/1", "nested": {"list": [{"api_key": "sk-x"}]}}
     assert handoff._contains_forbidden(evil) is not None
     with pytest.raises(ValueError, match="credential-like"):
         handoff._contains_forbidden(evil) and _raise_forbidden(evil)
@@ -45,7 +45,7 @@ def _raise_forbidden(payload):
 
 
 def test_handle_handoff_refuses_keys(isolated):
-    evil = {"format": "cortana-handoff/1", "note": "x",
+    evil = {"format": "jade-handoff/1", "note": "x",
             "context": "", "open_tasks": [], "token": "abc"}
     status, _, body = handoff.handle_session_handoff("127.0.0.1", evil)
     assert status == 400

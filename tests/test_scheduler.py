@@ -1,4 +1,4 @@
-"""Tests for core/scheduler.py — persistent in-Cortana task scheduler.
+"""Tests for core/scheduler.py — persistent in-Jade task scheduler.
 
 All filesystem state is redirected to tmp_path; no real jobs run, no
 network, no sleeping.
@@ -182,7 +182,7 @@ def test_tick_runs_due_jobs(iso_env):
 def test_missed_run_logged_not_silently_skipped(iso_env):
     s = _sched()
     job = s.add_job("demo", "/test-echo hi", {"kind": "interval", "seconds": 3600})
-    # Simulate Cortana being down for a day: next_run long past.
+    # Simulate Jade being down for a day: next_run long past.
     job["next_run"] = (datetime.now() - timedelta(days=1)).isoformat(timespec="seconds")
     s._save()
     s2 = Scheduler()  # load triggers missed detection
@@ -196,7 +196,7 @@ def test_missed_oneshot_disabled(iso_env):
     s = _sched()
     future = (datetime.now() + timedelta(seconds=30)).isoformat(timespec="seconds")
     job = s.add_job("once", "/test-echo hi", {"kind": "once", "at": future})
-    # Simulate Cortana being down when the one-shot time passed:
+    # Simulate Jade being down when the one-shot time passed:
     # both the scheduled time and next_run are now in the past.
     past = (datetime.now() - timedelta(days=1)).isoformat(timespec="seconds")
     job["schedule"]["at"] = past

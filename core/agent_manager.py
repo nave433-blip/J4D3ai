@@ -3,7 +3,7 @@
 Design rules (see startup auto-install redesign):
 - Detection (`check_agents`) is pure: no side effects, no network, no installs.
 - Installation NEVER happens without explicit per-item user approval.
-- "Don't ask again" choices persist in the Cortana config under
+- "Don't ask again" choices persist in the Jade config under
   "agent_install_declined" so declined agents stay silent on later startups.
 - Non-interactive callers pass no prompter (or auto-mode) and get a
   report of what is missing without any install being attempted.

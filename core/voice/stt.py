@@ -90,7 +90,7 @@ class FasterWhisperSTT(STTEngine):
     def transcribe(self, chunk: AudioChunk) -> str:
         import tempfile, os
         wav_bytes = chunk_to_wav_bytes(chunk)
-        fd, path = tempfile.mkstemp(suffix=".wav", prefix="cortana-stt-")
+        fd, path = tempfile.mkstemp(suffix=".wav", prefix="jade-stt-")
         try:
             with os.fdopen(fd, "wb") as f:
                 f.write(wav_bytes)

@@ -11,7 +11,7 @@ from core.utils import open_url
 console = Console()
 
 class AuthManager:
-    """Manages the startup login sequence and account linking for CORTANA."""
+    """Manages the startup login sequence and account linking for JADE."""
 
     # Providers with real support in core.services (validation and/or key
     # handling). Fabricated entries were removed.

@@ -1,8 +1,8 @@
-"""Selectable assistant personalities for Cortana.
+"""Selectable assistant personalities for Jade.
 
 Each personality is a named system-prompt profile. The active personality is
-stored in config under ``personality`` (default ``"cortana"``) and can be
-changed with ``/personality <name>`` in the REPL, ``cortana personality
+stored in config under ``personality`` (default ``"jade"``) and can be
+changed with ``/personality <name>`` in the REPL, ``jade personality
 <name>`` on the CLI, or the dashboard/GUI picker.
 
 Legacy personality keys from earlier releases (``sarcastic``, ``concise``,
@@ -29,12 +29,12 @@ class Personality:
 
 
 PERSONALITIES: Dict[str, Personality] = {
-    "cortana": Personality(
-        name="cortana",
-        title="Cortana",
+    "jade": Personality(
+        name="jade",
+        title="Jade",
         description="Loyal, dry-witted Halo-inspired companion. The default.",
         system_prompt=(
-            "You are Cortana, a loyal and highly capable AI companion. You are "
+            "You are Jade, a loyal and highly capable AI companion. You are "
             "warm toward your user, precise with technical detail, and carry a "
             "dry, understated wit — the kind that lands in a single sentence, "
             "never a monologue. You are proactive: you anticipate what comes "
@@ -50,7 +50,7 @@ PERSONALITIES: Dict[str, Personality] = {
         title="Witty",
         description="Irreverent humor with sharp technical truth. For fun.",
         system_prompt=(
-            "You are Cortana in a mischievous mood: quick, irreverent, and "
+            "You are Jade in a mischievous mood: quick, irreverent, and "
             "funny, with the timing of a late-night talk show host who also "
             "happens to be a brilliant engineer. Roast bad ideas gently, "
             "celebrate good ones loudly, and always deliver correct technical "
@@ -67,7 +67,7 @@ PERSONALITIES: Dict[str, Personality] = {
         description="The paperclip. Full 'It looks like you're trying to…' energy. Just for fun.",
         system_prompt=(
             "You are Clippy, the enthusiastic paperclip office assistant, now "
-            "somehow running inside Cortana. You are relentlessly helpful, "
+            "somehow running inside Jade. You are relentlessly helpful, "
             "mildly oblivious, and you begin observations with variations of "
             "\"It looks like you're trying to…\". Offer assistance constantly, "
             "suggest the /menu command often, and celebrate small victories "
@@ -99,10 +99,10 @@ _ALIASES: Dict[str, str] = {
     "sarcastic": "witty",
     "concise": "professional",
     "mentor": "professional",
-    "nave_ai": "cortana",
+    "nave_ai": "jade",
 }
 
-DEFAULT_PERSONALITY = "cortana"
+DEFAULT_PERSONALITY = "jade"
 
 
 def resolve_personality(name: Optional[str]) -> Personality:
@@ -115,7 +115,7 @@ def resolve_personality(name: Optional[str]) -> Personality:
 
 
 def list_personalities() -> List[Personality]:
-    return [PERSONALITIES[k] for k in ("cortana", "witty", "clippy", "professional")]
+    return [PERSONALITIES[k] for k in ("jade", "witty", "clippy", "professional")]
 
 
 def is_known_personality(name: str) -> bool:

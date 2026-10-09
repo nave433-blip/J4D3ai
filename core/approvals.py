@@ -1,16 +1,16 @@
-"""Central approval plumbing for Cortana's confirmation prompts.
+"""Central approval plumbing for Jade's confirmation prompts.
 
 Routine confirmations go through :func:`confirm`, a drop-in replacement for
 ``rich.prompt.Confirm.ask``. Auto-approve ("allow all") is an explicit,
 never-by-default opt-in via any of:
 
-- config ``"auto_approve": true`` in ``~/.cortana/config.json``
-- env var ``CORTANA_AUTO_APPROVE=1`` (deprecated fallback ``JARVIS_AUTO_APPROVE``)
+- config ``"auto_approve": true`` in ``~/.jade/config.json``
+- env var ``JADE_AUTO_APPROVE=1`` (deprecated fallback ``JARVIS_AUTO_APPROVE``)
 - the ``--yes`` / ``-y`` CLI flag (current session only)
 
 When enabled, routine prompts are answered "yes" automatically: a warning
 banner prints once at startup and every auto-approved action is appended to
-``~/.cortana/logs/auto_approve.log`` (mode ``0600``).
+``~/.jade/logs/auto_approve.log`` (mode ``0600``).
 
 Credential and trust decisions are never auto-approved: pass
 ``sensitive=True`` and the user is always asked, no matter what. The sandbox
@@ -51,7 +51,7 @@ def is_auto_approve(cfg=None) -> bool:
     """True when the user explicitly opted into auto-approve. Never on by default."""
     if _session_yes:
         return True
-    if os.environ.get("CORTANA_AUTO_APPROVE", "").strip().lower() in _TRUE_VALUES:
+    if os.environ.get("JADE_AUTO_APPROVE", "").strip().lower() in _TRUE_VALUES:
         return True
     # Deprecated pre-rename fallback.
     if os.environ.get("JARVIS_AUTO_APPROVE", "").strip().lower() in _TRUE_VALUES:

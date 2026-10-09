@@ -1,4 +1,4 @@
-# Cortana reference cloud server
+# Jade reference cloud server
 
 The honest minimal backend a local-first assistant actually needs. The CLI
 stays fully functional offline — the server adds **accounts**, **OAuth
@@ -12,8 +12,8 @@ Reference implementation, **not production-hardened** — read
 ## 5-minute deploy
 
 ```bash
-cd cortana            # repo root
-cp .env.example .env  # fill in secrets (CORTANA_TOKEN_KEY at minimum)
+cd jade            # repo root
+cp .env.example .env  # fill in secrets (JADE_TOKEN_KEY at minimum)
 docker compose -f server/docker-compose.yml up --build
 ```
 
@@ -43,7 +43,7 @@ No Docker? The server is stdlib + `cryptography`:
 
 ```bash
 pip install -r server/requirements.txt
-CORTANA_DATA_DIR=./server-data CORTANA_TOKEN_KEY="$(openssl rand -base64 32)" \
+JADE_DATA_DIR=./server-data JADE_TOKEN_KEY="$(openssl rand -base64 32)" \
   python -m server.app
 ```
 
@@ -52,11 +52,11 @@ CORTANA_DATA_DIR=./server-data CORTANA_TOKEN_KEY="$(openssl rand -base64 32)" \
 Build, push, deploy to Container Apps:
 
 ```bash
-az acr create -g cortana-rg -n cortanareg --sku Basic
-az acr build -g cortana-rg -r cortanareg -t cortana-server:latest -f server/Dockerfile .
-az group create -n cortana-rg -l eastus
-az deployment group create -g cortana-rg -f azure/container-apps.bicep \
-  -p containerImage=cortanareg.azurecr.io/cortana-server:latest \
+az acr create -g jade-rg -n jadereg --sku Basic
+az acr build -g jade-rg -r jadereg -t jade-server:latest -f server/Dockerfile .
+az group create -n jade-rg -l eastus
+az deployment group create -g jade-rg -f azure/container-apps.bicep \
+  -p containerImage=jadereg.azurecr.io/jade-server:latest \
      tokenKey="$(openssl rand -base64 32)" \
      publicUrl="https://<fqdn-from-output>"
 ```
@@ -66,7 +66,7 @@ the operator's step — see PRODUCTION.md.)
 
 ## API reference
 
-Base: `$CORTANA_PUBLIC_URL` (default `http://localhost:8080`).
+Base: `$JADE_PUBLIC_URL` (default `http://localhost:8080`).
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
@@ -92,7 +92,7 @@ Base: `$CORTANA_PUBLIC_URL` (default `http://localhost:8080`).
 
 Connector ids: `google-drive`, `gmail`, `google-calendar`, `outlook`, `github`.
 
-## Contract for the Cortana client (Round C)
+## Contract for the Jade client (Round C)
 
 The client-side sign-in flows call exactly these endpoints; nothing else
 is needed:

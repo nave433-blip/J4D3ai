@@ -17,12 +17,12 @@ services:
       context: ..
       dockerfile: server/Dockerfile
     ports:
-      - "${CORTANA_SERVER_PORT:-8080}:8080"
+      - "${JADE_SERVER_PORT:-8080}:8080"
     env_file:
       - ../.env
     environment:
-      CORTANA_SERVER_HOST: "0.0.0.0"
-      CORTANA_DATA_DIR: /data
+      JADE_SERVER_HOST: "0.0.0.0"
+      JADE_DATA_DIR: /data
     volumes:
       - server-data:/data
     depends_on:
@@ -36,9 +36,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: "${POSTGRES_USER:-cortana}"
+      POSTGRES_USER: "${POSTGRES_USER:-jade}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-change-me-in-.env}"
-      POSTGRES_DB: "${POSTGRES_DB:-cortana}"
+      POSTGRES_DB: "${POSTGRES_DB:-jade}"
     volumes:
       - pg-data:/var/lib/postgresql/data
     restart: unless-stopped

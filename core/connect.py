@@ -3,8 +3,8 @@
 Key storage policy
 ------------------
 API keys are stored in the OS keyring via the ``keyring`` package
-(service ``"cortana-dev"``, account ``"cortana-<provider>"``). When no keyring
-backend is available, keys fall back to ``~/.cortana/keys.json`` with 0600
+(service ``"jade-dev"``, account ``"jade-<provider>"``). When no keyring
+backend is available, keys fall back to ``~/.jade/keys.json`` with 0600
 permissions, and a clear warning is printed. Keys are never printed, logged,
 or echoed — entry is always via ``getpass`` and a key is only stored after
 it passes validation.
@@ -445,7 +445,7 @@ def run_connect_wizard() -> None:
     """Interactive provider setup: numbered list with status dots, per-provider flow."""
     console.print(Panel(
         "🌐 [bold cyan]Account Connection Center[/bold cyan]\n"
-        "[dim]Link an AI provider so CORTANA has a brain. Nothing is saved until it validates.[/dim]",
+        "[dim]Link an AI provider so JADE has a brain. Nothing is saved until it validates.[/dim]",
         border_style="cyan",
     ))
 

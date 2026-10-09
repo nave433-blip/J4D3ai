@@ -8,10 +8,10 @@ credentials flow. Setup (Azure portal):
 3. Subscriptions -> your subscription -> Access control (IAM) ->
    Add role assignment -> **Reader** -> select your app.
 
-Then store the three values (never shipped with Cortana):
-  cortana settings set azure_tenant_id <tenant-id>
-  cortana settings set azure_client_id <application-id>
-  cortana settings set azure_client_secret <secret>   # goes to OS keyring
+Then store the three values (never shipped with Jade):
+  jade settings set azure_tenant_id <tenant-id>
+  jade settings set azure_client_id <application-id>
+  jade settings set azure_client_secret <secret>   # goes to OS keyring
 
 Deliberately read-only: no start/stop/delete actions are exposed. If you
 need power operations, use the Azure portal or CLI — a chat assistant
@@ -35,7 +35,7 @@ from core.config import load_config
 console = Console()
 
 ARM = "https://management.azure.com"
-_KEYRING_SERVICE = "cortana_connector_azure"
+_KEYRING_SERVICE = "jade_connector_azure"
 _KEYRING_USER = "client_secret"
 
 
@@ -78,8 +78,8 @@ class AzureConnector(Connector):
         secret = self._client_secret()
         if not tenant or not cid:
             console.print("[yellow]Set azure_tenant_id and azure_client_id first:[/yellow]")
-            console.print("  cortana settings set azure_tenant_id <tenant-id>")
-            console.print("  cortana settings set azure_client_id <application-id>")
+            console.print("  jade settings set azure_tenant_id <tenant-id>")
+            console.print("  jade settings set azure_client_id <application-id>")
             return {"ok": False, "error": "azure_tenant_id/azure_client_id not set"}
         if not secret:
             secret = console.input("Client secret (stored in OS keyring): ").strip()

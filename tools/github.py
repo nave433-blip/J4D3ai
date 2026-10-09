@@ -5,9 +5,9 @@ Backend preference
 1. The ``gh`` CLI, when it is installed *and* authenticated
    (``gh auth status`` succeeds).
 2. The GitHub REST API via stdlib ``urllib.request`` with a personal access
-   token. The token is stored in the OS keyring (service ``"cortana-dev"``,
-   account ``"cortana-github"``); when no keyring backend exists it falls back
-   to the ``CORTANA_GITHUB_TOKEN`` environment variable. The token is never
+   token. The token is stored in the OS keyring (service ``"jade-dev"``,
+   account ``"jade-github"``); when no keyring backend exists it falls back
+   to the ``JADE_GITHUB_TOKEN`` environment variable. The token is never
    printed or logged — entry is via ``getpass`` and it is stored only after it
    validates against ``GET /user``.
 
@@ -34,9 +34,9 @@ from core.approvals import confirm
 
 console = Console()
 
-KEYRING_SERVICE = "cortana-dev"
-KEYRING_ACCOUNT = "cortana-github"
-ENV_TOKEN_VAR = "CORTANA_GITHUB_TOKEN"
+KEYRING_SERVICE = "jade-dev"
+KEYRING_ACCOUNT = "jade-github"
+ENV_TOKEN_VAR = "JADE_GITHUB_TOKEN"
 API_BASE = "https://api.github.com"
 REST_TIMEOUT = 20
 GH_TIMEOUT = 20
@@ -61,7 +61,7 @@ def _keyring_backend_ok() -> bool:
 def _get_token():
     """Return (token, source) where source is "keyring"/"env", or (None, None).
 
-    Keyring first; ``CORTANA_GITHUB_TOKEN`` env var when no keyring backend
+    Keyring first; ``JADE_GITHUB_TOKEN`` env var when no keyring backend
     (or no keyring entry) is available.
     """
     if _keyring_backend_ok():
@@ -179,7 +179,7 @@ def _rest_request(method: str, path: str, token: str, payload=None) -> dict:
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
-        "User-Agent": "cortana-github/0.1",
+        "User-Agent": "jade-github/0.1",
         "X-GitHub-Api-Version": "2022-11-28",
     }
     data = json.dumps(payload).encode("utf-8") if payload is not None else None

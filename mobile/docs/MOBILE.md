@@ -24,9 +24,9 @@ anything reachable from your phone):
 
 ```bash
 cd <jade-repo>            # the repo root, NOT mobile/
-cp .env.example .env         # then edit .env: set secrets (CORTANA_TOKEN_KEY at minimum)
+cp .env.example .env         # then edit .env: set secrets (JADE_TOKEN_KEY at minimum)
 pip install -r server/requirements.txt
-CORTANA_DATA_DIR=./server-data CORTANA_TOKEN_KEY="$(openssl rand -base64 32)" \
+JADE_DATA_DIR=./server-data JADE_TOKEN_KEY="$(openssl rand -base64 32)" \
   python -m server.app
 ```
 
@@ -52,8 +52,8 @@ curl -X POST localhost:8080/v1/accounts/signup \
 ```
 
 For chat to work, the server needs a provider (`.env`):
-`CORTANA_CHAT_BASE_URL`, `CORTANA_CHAT_API_KEY`, and optionally
-`CORTANA_CHAT_MODEL`.
+`JADE_CHAT_BASE_URL`, `JADE_CHAT_API_KEY`, and optionally
+`JADE_CHAT_MODEL`.
 
 **Reaching the server from your phone:** the app needs an `http(s)://` URL
 that resolves from the phone. On the same Wi-Fi, use the computer's LAN IP,
@@ -177,8 +177,8 @@ mobile/
   `<server-url>/healthz`; you should see `{"ok": true, ...}`.
 - **Login loops back to the auth screen** — the stored token expired or the
   server DB was wiped. Just log in again.
-- **501 "No chat provider configured"** — set `CORTANA_CHAT_BASE_URL` /
-  `CORTANA_CHAT_API_KEY` in the server's `.env` and restart it.
+- **501 "No chat provider configured"** — set `JADE_CHAT_BASE_URL` /
+  `JADE_CHAT_API_KEY` in the server's `.env` and restart it.
 - **Mic button missing** — you're in Expo Go. It's intentional (see above).
 - **`npx expo-doctor` warnings** — see "Known verification notes" below.
 

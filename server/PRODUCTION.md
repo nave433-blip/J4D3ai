@@ -18,11 +18,11 @@ only). Implement it against Postgres (`psycopg[binary]`):
 
 ## 2. Secrets — move out of env files ★ critical
 
-- `CORTANA_TOKEN_KEY`, OAuth client secrets, `chat_api_key`: Azure Key
+- `JADE_TOKEN_KEY`, OAuth client secrets, `chat_api_key`: Azure Key
   Vault (or equivalent) with managed-identity access; the bicep template
   already uses Container Apps secrets — promote them to Key Vault
   references
-- rotate `CORTANA_TOKEN_KEY` on a schedule; build a re-encryption job
+- rotate `JADE_TOKEN_KEY` on a schedule; build a re-encryption job
   (decrypt with old key, encrypt with new) before you need it
 - never log secrets: the app redacts config and never logs `Authorization`
   headers — keep that invariant in every change (add a test)
@@ -67,7 +67,7 @@ refresh failures. Never log tokens, codes, or secrets. Retain per policy.
 ## 8. Backups + DR ★ high
 
 - nightly encrypted Postgres backups with tested restores
-- the Fernet `CORTANA_TOKEN_KEY` is **not** recoverable from a backup of
+- the Fernet `JADE_TOKEN_KEY` is **not** recoverable from a backup of
   the DB alone — back it up separately (Key Vault) or connector tokens
   become permanently unreadable
 

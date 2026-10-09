@@ -1,7 +1,7 @@
-"""Wake-word ("Hey Cortana") detection — pluggable engine interface.
+"""Wake-word ("Hey Jade") detection — pluggable engine interface.
 
 Ships with an open-source default (``openwakeword`` when installed) and an
-honest unavailable engine otherwise. A custom-trained "Hey Cortana" model
+honest unavailable engine otherwise. A custom-trained "Hey Jade" model
 drops in via config: set ``wakeword_model_path`` to your ``.onnx`` model and
 ``wakeword_threshold`` to taste — see ``core/voice/proprietary/README.md``.
 
@@ -54,7 +54,7 @@ class UnavailableWakeWordEngine(WakeWordEngine):
 class OpenWakeWordEngine(WakeWordEngine):
     """Hotword detection via the optional ``openwakeword`` package.
 
-    Uses a bundled or custom ``.onnx`` model. To train your own "Hey Cortana"
+    Uses a bundled or custom ``.onnx`` model. To train your own "Hey Jade"
     model, see https://github.com/dscripka/openWakeWord#training-new-models
     and drop the resulting file into ``core/voice/proprietary/`` (or set
     ``wakeword_model_path`` in config).
@@ -87,7 +87,7 @@ class OpenWakeWordEngine(WakeWordEngine):
     def model_info(self) -> str:
         if self._model_path:
             return f"openwakeword custom model: {self._model_path}"
-        return "openwakeword (built-in models; set wakeword_model_path for a custom 'Hey Cortana' model)"
+        return "openwakeword (built-in models; set wakeword_model_path for a custom 'Hey Jade' model)"
 
     def listen_once(self, capture: AudioCapture, timeout: float = 30.0) -> bool:
         model = self._ensure()
@@ -124,7 +124,7 @@ def run_listener(on_wake, capture: Optional[AudioCapture] = None,
     from core.voice.audio import default_capture
     capture = capture or default_capture()
     engine = engine or default_wakeword()
-    print(f"[cortana] Listening for '{engine.hotword}' "
+    print(f"[jade] Listening for '{engine.hotword}' "
           f"({engine.model_info}). Ctrl+C to stop.")
     try:
         while True:
@@ -132,7 +132,7 @@ def run_listener(on_wake, capture: Optional[AudioCapture] = None,
                 if engine.listen_once(capture, timeout=poll_timeout):
                     on_wake()
             except VoiceError as e:
-                print(f"[cortana] Wake-word error: {e}")
+                print(f"[jade] Wake-word error: {e}")
                 break
     except KeyboardInterrupt:
-        print("[cortana] Wake-word listening stopped.")
+        print("[jade] Wake-word listening stopped.")

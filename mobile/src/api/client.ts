@@ -3,7 +3,7 @@
  *
  * The app is a THIN CLIENT: it never bundles the Python brain. Every chat
  * message goes to YOUR server's OpenAI-compatible endpoint, which relays to
- * whatever provider you configured with CORTANA_CHAT_*.
+ * whatever provider you configured with JADE_CHAT_*.
  *
  * Server routes used:
  *   POST /v1/accounts/signup   {email, password, display_name} -> 201 {user}
@@ -49,7 +49,7 @@ function friendlyError(status: number, serverMsg: string): string {
   if (status === 401) return serverMsg || 'Not authorized. Your session may have expired — log in again.';
   if (status === 400) return serverMsg || 'The server rejected the request.';
   if (status === 429) return 'Rate limited — wait a minute and try again.';
-  if (status === 501) return 'No chat provider configured on the server (set CORTANA_CHAT_BASE_URL and CORTANA_CHAT_API_KEY).';
+  if (status === 501) return 'No chat provider configured on the server (set JADE_CHAT_BASE_URL and JADE_CHAT_API_KEY).';
   if (status >= 500) return `Server error (${status}). Try again in a bit.`;
   return serverMsg || `Request failed (${status}).`;
 }
