@@ -2,6 +2,8 @@ import http.server
 import socketserver
 import json
 import os
+import base64
+import hashlib
 import hmac
 import ipaddress
 import shutil
@@ -10,6 +12,7 @@ import subprocess
 import threading
 import time
 import socket
+import uuid
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from rich.console import Console
@@ -66,7 +69,8 @@ P2P_FEATURES = {
     "0.1.7": ["status", "edit_file", "read_file"],
     "0.2.6": ["status", "edit_file", "read_file", "list_tokens", "get_token", "think", "handoff", "execute_chunk",
               "hive_cache_get", "hive_cache_put", "capabilities",
-              "skill_offer", "session_handoff"]
+              "skill_offer", "session_handoff",
+              "file_send", "file_fetch", "message", "p2p_sync_memory"]
 }
 
 def is_p2p_compatible(remote_version: str, action: str = "status") -> bool:
@@ -124,6 +128,31 @@ def check_permission(peer_ip, action):
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
 
+
+# ---------------------------------------------------------------------------
+# Binary file transfer state.
+#
+# file_send uploads arrive as numbered chunks; the server holds them in
+# memory keyed by transfer_id until the last chunk arrives, then verifies
+# the sha256 of the reassembled bytes and atomically renames a temp file
+# into the confined destination. Abandoned transfers are pruned.
+# ---------------------------------------------------------------------------
+P2P_MAX_CHUNK = 1_000_000      # 1 MB per chunk
+P2P_MAX_FILE = 64_000_000      # 64 MB per transfer
+P2P_TRANSFER_TTL = 600         # drop incomplete transfers after 10 minutes
+
+_file_transfers = {}  # transfer_id -> {"path", "total_chunks", "chunks", "sha256", "started", "peer"}
+_file_transfer_lock = threading.Lock()
+
+
+def _prune_transfers():
+    now = time.time()
+    with _file_transfer_lock:
+        stale = [tid for tid, t in _file_transfers.items()
+                 if now - t["started"] > P2P_TRANSFER_TTL]
+        for tid in stale:
+            del _file_transfers[tid]
+
 class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         peer_ip = self.client_address[0]
@@ -169,14 +198,21 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
                 capabilities = hive_mod.local_capabilities()
             except Exception:
                 capabilities = {"providers": [], "models": [], "features": []}
+            try:
+                from tools.hardware import get_node_id
+                node_id = get_node_id()
+            except Exception:
+                node_id = "unknown"
             status_data = {
                 "status": "online",
+                "node_id": node_id,
                 "name": cfg.get("cortana_name", "Cortana"),
                 "version": CURRENT_VERSION,
                 "model": cfg.get("cortana_model", "unknown"),
                 "local_models": cfg.get("detected_local_models", []),
                 "p2p_enabled": cfg.get("p2p_enabled", True),
                 "hive_load": health,
+                "last_seen": time.time(),
                 # Capability registry: provider/model NAMES only.
                 # API keys and tokens are NEVER advertised or transmitted.
                 "capabilities": capabilities,
@@ -220,7 +256,9 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
             self.wfile.write(json.dumps(list_available_keys()).encode()); return
 
-        if not check_permission(peer_ip, action):
+        # p2p_sync_memory carries its own permission name ("sync_memory") and
+        # its own config opt-in; both are enforced inside its branch below.
+        if action != "p2p_sync_memory" and not check_permission(peer_ip, action):
             self.send_response(403); self.end_headers()
             self.wfile.write(b"Permission denied"); return
 
@@ -264,6 +302,182 @@ class CortanaP2PHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(res.encode())
             except Exception as e:
                 self.send_response(500); self.end_headers(); self.wfile.write(str(e).encode())
+
+        elif action == "file_send":
+            # Binary upload, one chunk per request:
+            # {transfer_id, path, chunk_index, total_chunks, sha256, data_b64}
+            # Permission-gated and LAN-only like edit_file (enforced above).
+            _prune_transfers()
+            tid = str(data.get("transfer_id") or "")
+            file_path = data.get("path")
+            try:
+                chunk_index = int(data.get("chunk_index", -1))
+                total_chunks = int(data.get("total_chunks", 0))
+            except (TypeError, ValueError):
+                chunk_index, total_chunks = -1, 0
+            expect_sha = str(data.get("sha256") or "")
+            full_path = _is_path_confined(file_path) if file_path else None
+            if not tid or full_path is None:
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Forbidden: bad transfer id or path outside the CORTANA workspace"); return
+            if total_chunks < 1 or total_chunks > (P2P_MAX_FILE // 1024 + 1) \
+                    or not (0 <= chunk_index < total_chunks):
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Bad chunk_index/total_chunks"); return
+            try:
+                chunk = base64.b64decode(data.get("data_b64") or b"", validate=True)
+            except Exception:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Invalid base64 chunk"); return
+            if len(chunk) > P2P_MAX_CHUNK:
+                self.send_response(413); self.end_headers()
+                self.wfile.write(b"Chunk too large"); return
+            with _file_transfer_lock:
+                t = _file_transfers.get(tid)
+                if t is None:
+                    t = {"path": full_path, "total_chunks": total_chunks,
+                         "chunks": {}, "sha256": expect_sha,
+                         "started": time.time(), "peer": peer_ip}
+                    _file_transfers[tid] = t
+                if str(t["path"]) != str(full_path) or t["total_chunks"] != total_chunks:
+                    self.send_response(409); self.end_headers()
+                    self.wfile.write(b"Transfer id reused with different path/size"); return
+                t["chunks"][chunk_index] = chunk
+                received = len(t["chunks"])
+                complete = received == total_chunks
+                if complete:
+                    blob = b"".join(t["chunks"][i] for i in range(total_chunks))
+                    del _file_transfers[tid]
+            if complete:
+                if len(blob) > P2P_MAX_FILE:
+                    self.send_response(413); self.end_headers()
+                    self.wfile.write(b"File too large"); return
+                if expect_sha and hashlib.sha256(blob).hexdigest() != expect_sha.lower():
+                    self.send_response(422); self.end_headers()
+                    self.wfile.write(b"SHA256 mismatch: transfer discarded"); return
+                try:
+                    full_path.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = full_path.with_name(full_path.name + f".p2p-{tid[:8]}.tmp")
+                    with open(tmp, "wb") as f:
+                        f.write(blob)
+                    os.replace(tmp, full_path)  # atomic rename
+                except Exception as e:
+                    self.send_response(500); self.end_headers()
+                    self.wfile.write(str(e).encode()); return
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "received": received,
+                                         "total_chunks": total_chunks,
+                                         "complete": complete}).encode())
+
+        elif action == "file_fetch":
+            # Binary download, range read: {path, offset, length} ->
+            # {data_b64, offset, total_size, sha256}. Permission-gated and
+            # LAN-only like read_file (enforced above).
+            file_path = data.get("path")
+            full_path = _is_path_confined(file_path) if file_path else None
+            if full_path is None:
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Forbidden: path outside the CORTANA workspace"); return
+            try:
+                offset = max(0, int(data.get("offset", 0)))
+                length = int(data.get("length", P2P_MAX_CHUNK))
+                length = max(1, min(length, P2P_MAX_CHUNK))
+            except (TypeError, ValueError):
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Bad offset/length"); return
+            try:
+                if not full_path.is_file():
+                    self.send_response(404); self.end_headers()
+                    self.wfile.write(b"File not found"); return
+                total = full_path.stat().st_size
+                if total > P2P_MAX_FILE:
+                    self.send_response(413); self.end_headers()
+                    self.wfile.write(b"File too large"); return
+                with open(full_path, "rb") as f:
+                    f.seek(offset)
+                    chunk = f.read(length)
+                digest = hashlib.sha256(full_path.read_bytes()).hexdigest()
+            except Exception as e:
+                self.send_response(500); self.end_headers()
+                self.wfile.write(str(e).encode()); return
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({
+                "data_b64": base64.b64encode(chunk).decode(),
+                "offset": offset, "length": len(chunk),
+                "total_size": total, "sha256": digest}).encode())
+
+        elif action == "message":
+            # Direct peer message -> local inbox. Permission-gated (above):
+            # a peer needs your approval before it can drop messages here.
+            text = str(data.get("text") or "").strip()
+            if not text:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Empty message"); return
+            if len(text) > P2P_MESSAGE_MAX:
+                self.send_response(413); self.end_headers()
+                self.wfile.write(b"Message too long"); return
+            entry = {
+                "from_node_id": str(data.get("from_node_id") or "unknown"),
+                "from_ip": peer_ip,
+                "timestamp": time.time(),
+                "text": text,
+            }
+            _inbox_store(entry)
+            self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+            self.wfile.write(json.dumps({"ok": True, "stored": True}).encode())
+
+        elif action == "p2p_sync_memory":
+            # Opt-in memory-core sync between your own devices.
+            #
+            # TRUST ASSUMPTION (read this before enabling): a peer that
+            # passes both gates below can PULL (read) and PUSH (write) your
+            # memory cores. Only enable with nodes you fully trust —
+            # typically your own machines.
+            #
+            # Gate 1 (both sides): "p2p_memory_sync": true in config.
+            # Gate 2 (this side):  the "sync_memory" permission for the
+            #   peer's IP — default deny (the prompt defaults to refusing).
+            from core import memory_cores as mc_mod
+            if not cfg.get("p2p_memory_sync"):
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Memory sync is not enabled on this node "
+                                 b"(set 'p2p_memory_sync': true to opt in)."); return
+            if not check_permission(peer_ip, "sync_memory"):
+                self.send_response(403); self.end_headers()
+                self.wfile.write(b"Permission denied (sync_memory)"); return
+            mode = str(data.get("mode") or "")
+            core = str(data.get("core") or "")
+            if core not in mc_mod.CORES:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"Unknown memory core"); return
+            if mode == "push":
+                entries = data.get("entries") or []
+                if not isinstance(entries, list) or len(entries) > 200:
+                    self.send_response(400); self.end_headers()
+                    self.wfile.write(b"entries must be a list of at most 200"); return
+                stored = 0
+                for e in entries:
+                    text = (e.get("text") if isinstance(e, dict) else "") or ""
+                    if text.strip():
+                        r = mc_mod.remember(core, text[:4000],
+                                           source=f"p2p:{peer_ip}",
+                                           scope="p2p-sync")
+                        if r.get("ok"):
+                            stored += 1
+                self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "stored": stored}).encode())
+            elif mode == "pull":
+                try:
+                    limit = max(1, min(int(data.get("limit", 50)), 200))
+                except (TypeError, ValueError):
+                    limit = 50
+                entries = mc_mod.recall(core, limit=limit)
+                self.send_response(200); self.send_header('Content-type', 'application/json'); self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "core": core,
+                                             "entries": entries}).encode())
+            else:
+                self.send_response(400); self.end_headers()
+                self.wfile.write(b"mode must be 'push' or 'pull'"); return
 
         elif action == "think":
             from core.resource_manager import resource_manager
@@ -445,7 +659,11 @@ def discover_peer_endpoints(discovery_port=11436, timeout=1.5, target='<broadcas
     """
     found = []
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    if target == '<broadcast>':
+        # Broadcast capability is only needed for actual broadcasts; a
+        # unicast probe (e.g. target="127.0.0.1" in tests) must not require
+        # it — some sandboxes forbid SO_BROADCAST sockets entirely.
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.settimeout(timeout)
     try:
         sock.sendto(b"JARVIS_DISCOVERY_REQUEST", (target, discovery_port))
@@ -528,6 +746,140 @@ def scan_for_cortana_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=Fal
     return sorted({ip for ip, _port in scan_for_cortana_peer_endpoints(
         port, timeout, use_tls, verify_tls, discovery_port)})
 
+
+def _parse_endpoint(endpoint, default_port=11435):
+    """Split a discovery-server endpoint ('host', 'host:port', 'http://h:p')
+    into (host, port). Returns (None, None) when unparseable."""
+    if not endpoint:
+        return None, None
+    ep = str(endpoint).strip()
+    if "://" in ep:
+        ep = ep.split("://", 1)[1]
+    ep = ep.rstrip("/")
+    if ":" in ep and not ep.startswith("["):
+        host, _, port_s = ep.rpartition(":")
+        try:
+            return host or None, int(port_s)
+        except ValueError:
+            return ep, default_port
+    return ep or None, default_port
+
+
+def p2p_peers(port=11435, timeout=1.5, use_tls=None, verify_tls=False,
+              discovery_port=11436, target='<broadcast>'):
+    """Merged presence list: LAN peers (UDP discovery) + global peers
+    (discovery server), deduplicated by node_id.
+
+    Returns a list of dicts, each shaped like::
+
+        {"node_id": ..., "name": ..., "version": ...,
+         "sources": ["lan", "global"],          # one or both
+         "lan_endpoint": {"ip": ..., "port": ...} | None,
+         "global_endpoint": {"host": ..., "port": ...} | None,
+         "last_seen": <unix ts> | None}
+
+    ``last_seen`` for LAN peers is the time of the last successful status
+    probe; for global peers it is the discovery server's heartbeat stamp.
+    Deliberately skips the slow /24 subnet sweep that
+    :func:`scan_for_cortana_peer_endpoints` performs — presence is about who
+    announced themselves, not a port scan.
+    """
+    from core.config import load_config
+    cfg = load_config()
+    scheme = _p2p_scheme(use_tls, cfg)
+    if scheme == "https" and not verify_tls:
+        _quiet_insecure_warnings()
+
+    merged = {}  # node_id -> entry
+
+    def _entry(node_id):
+        return merged.setdefault(node_id, {
+            "node_id": node_id, "name": "unknown", "version": "unknown",
+            "sources": [], "lan_endpoint": None, "global_endpoint": None,
+            "last_seen": None,
+        })
+
+    # --- LAN: UDP discovery, then a status probe for identity ---------------
+    lan_found = discover_peer_endpoints(discovery_port, timeout, target=target)
+
+    def _probe(item):
+        ip, adv_port, adv_name = item
+        entry = {"ip": ip, "port": adv_port, "name": adv_name,
+                 "node_id": f"lan:{ip}:{adv_port}", "version": "unknown",
+                 "last_seen": None}
+        try:
+            r = requests.post(f"{scheme}://{ip}:{adv_port}",
+                              json={"action": "status"}, timeout=1.0,
+                              verify=verify_tls)
+            if r.status_code == 200:
+                data = r.json()
+                entry["node_id"] = str(data.get("node_id") or entry["node_id"])
+                entry["name"] = data.get("name", adv_name)
+                entry["version"] = data.get("version", "unknown")
+                entry["last_seen"] = time.time()
+        except Exception:
+            pass
+        return entry
+
+    with ThreadPoolExecutor(max_workers=20) as ex:
+        probed = list(ex.map(_probe, lan_found))
+    for p in probed:
+        e = _entry(p["node_id"])
+        e["name"] = p["name"] if e["name"] == "unknown" else e["name"]
+        e["version"] = p["version"]
+        e["lan_endpoint"] = {"ip": p["ip"], "port": p["port"]}
+        if p["last_seen"]:
+            e["last_seen"] = p["last_seen"]
+        if "lan" not in e["sources"]:
+            e["sources"].append("lan")
+
+    # --- mDNS (optional; skipped silently when zeroconf is absent) --------
+    try:
+        from core.p2p_optional import mdns_discover
+        mdns_hits = mdns_discover(timeout=min(timeout, 2.0)) or []
+    except Exception:
+        mdns_hits = []
+    for hit in mdns_hits:
+        if not isinstance(hit, dict):
+            continue
+        node_id = str(hit.get("node_id") or "").strip()
+        if not node_id:
+            node_id = f"mdns:{hit.get('host')}:{hit.get('port')}"
+        e = _entry(node_id)
+        if hit.get("name"):
+            e["name"] = hit["name"] if e["name"] == "unknown" else e["name"]
+        if hit.get("version"):
+            e["version"] = hit["version"]
+        e["lan_endpoint"] = e["lan_endpoint"] or {"ip": hit.get("host"),
+                                                 "port": hit.get("port")}
+        if "mdns" not in e["sources"]:
+            e["sources"].append("mdns")
+
+    # --- global: discovery server registry ----------------------------------
+    try:
+        from core.global_p2p import get_global_peers
+        global_peers = get_global_peers()
+    except Exception:
+        global_peers = []
+    for gp in global_peers:
+        if not isinstance(gp, dict):
+            continue
+        node_id = str(gp.get("node_id") or "").strip()
+        if not node_id:
+            continue
+        host, gport = _parse_endpoint(gp.get("endpoint"), default_port=port)
+        e = _entry(node_id)
+        e["name"] = gp.get("name") or e["name"]
+        if gp.get("version"):
+            e["version"] = gp["version"]
+        e["global_endpoint"] = {"host": host, "port": gport}
+        if gp.get("last_seen"):
+            e["last_seen"] = gp["last_seen"]
+        if "global" not in e["sources"]:
+            e["sources"].append("global")
+
+    return sorted(merged.values(), key=lambda e: e["node_id"])
+
 def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verify_tls=False):
     """POST a command to a peer.
 
@@ -550,6 +902,242 @@ def send_remote_command(peer_ip, action, params, port=11435, use_tls=None, verif
             return {"ok": True, "stream": r.iter_content(chunk_size=None)} if stream else {"ok": True, "data": r.text}
         return {"ok": False, "error": f"Error {r.status_code}: {r.text}"}
     except Exception as e: return {"ok": False, "error": str(e)}
+
+def p2p_send_file(peer_ip, local_path, remote_path, port=11435, use_tls=None,
+                 verify_tls=False, chunk_size=P2P_MAX_CHUNK):
+    """Upload a local file to a peer in numbered chunks.
+
+    Returns {"ok": True, "bytes": N, "sha256": hex} on success. The peer
+    verifies the sha256 of the reassembled file before atomically moving it
+    into place, so a short or corrupted transfer can never leave a partial
+    file at the destination.
+    """
+    local = Path(os.path.expanduser(local_path))
+    if not local.is_file():
+        return {"ok": False, "error": f"Local file not found: {local_path}"}
+    blob = local.read_bytes()
+    if len(blob) > P2P_MAX_FILE:
+        return {"ok": False, "error": f"File exceeds {P2P_MAX_FILE} byte P2P limit"}
+    digest = hashlib.sha256(blob).hexdigest()
+    tid = uuid.uuid4().hex
+    chunk_size = max(1024, min(int(chunk_size), P2P_MAX_CHUNK))
+    chunks = [blob[i:i + chunk_size] for i in range(0, len(blob), chunk_size)] or [b""]
+    for idx, chunk in enumerate(chunks):
+        res = send_remote_command(peer_ip, "file_send", {
+            "transfer_id": tid, "path": remote_path,
+            "chunk_index": idx, "total_chunks": len(chunks),
+            "sha256": digest,
+            "data_b64": base64.b64encode(chunk).decode(),
+        }, port=port, use_tls=use_tls, verify_tls=verify_tls)
+        if not res["ok"]:
+            return {"ok": False, "error": f"chunk {idx}: {res['error']}"}
+        try:
+            ack = json.loads(res["data"])
+        except Exception:
+            return {"ok": False, "error": f"chunk {idx}: bad ack"}
+        if not ack.get("ok"):
+            return {"ok": False, "error": f"chunk {idx}: rejected by peer"}
+    if not ack.get("complete"):
+        return {"ok": False, "error": "peer never acknowledged completion"}
+    return {"ok": True, "bytes": len(blob), "sha256": digest}
+
+
+def p2p_fetch_file(peer_ip, remote_path, local_path, port=11435, use_tls=None,
+                  verify_tls=False, chunk_size=P2P_MAX_CHUNK):
+    """Download a file from a peer with range reads, verifying sha256.
+
+    Writes to a temp file and atomically renames into place, so a failed or
+    tampered download never leaves a partial file behind.
+    """
+    local = Path(os.path.expanduser(local_path))
+    chunk_size = max(1024, min(int(chunk_size), P2P_MAX_CHUNK))
+    tmp = local.with_name(local.name + ".p2p-dl.tmp")
+    offset, total, expect_sha = 0, None, None
+    try:
+        with open(tmp, "wb") as f:
+            while True:
+                res = send_remote_command(peer_ip, "file_fetch", {
+                    "path": remote_path, "offset": offset, "length": chunk_size,
+                }, port=port, use_tls=use_tls, verify_tls=verify_tls)
+                if not res["ok"]:
+                    raise RuntimeError(res["error"])
+                try:
+                    msg = json.loads(res["data"])
+                except Exception:
+                    raise RuntimeError("bad chunk response")
+                if total is None:
+                    total = int(msg["total_size"])
+                    expect_sha = str(msg["sha256"])
+                    if total > P2P_MAX_FILE:
+                        raise RuntimeError("remote file exceeds P2P size limit")
+                f.write(base64.b64decode(msg["data_b64"]))
+                offset += int(msg["length"])
+                if offset >= total or not msg["length"]:
+                    break
+        blob = tmp.read_bytes()
+        if hashlib.sha256(blob).hexdigest() != (expect_sha or "").lower():
+            raise RuntimeError("SHA256 mismatch: download discarded")
+        local.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(tmp, local)
+    except Exception as e:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "bytes": len(blob), "sha256": expect_sha}
+
+# ---------------------------------------------------------------------------
+# Peer direct messaging. Inbox lives at ~/.cortana/p2p_inbox.json, capped at
+# 500 entries (newest kept). Path is resolved at call time so tests can
+# isolate it by monkeypatching core.config.CONFIG_DIR.
+# ---------------------------------------------------------------------------
+P2P_INBOX_CAP = 500
+P2P_MESSAGE_MAX = 10_000  # max characters per message
+
+
+def _inbox_file():
+    from core.config import CONFIG_DIR
+    return CONFIG_DIR / "p2p_inbox.json"
+
+
+def _inbox_read():
+    path = _inbox_file()
+    try:
+        data = json.loads(path.read_text())
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _inbox_store(entry):
+    path = _inbox_file()
+    entries = _inbox_read()
+    entries.append(entry)
+    entries = entries[-P2P_INBOX_CAP:]
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(entries, indent=2))
+        tmp.replace(path)
+    except Exception:
+        pass
+    return entry
+
+
+def p2p_inbox(limit=50):
+    """Read the local P2P message inbox (newest first)."""
+    entries = _inbox_read()
+    entries.sort(key=lambda e: e.get("timestamp", 0), reverse=True)
+    return entries[:max(1, int(limit))]
+
+
+def p2p_inbox_clear():
+    """Empty the local P2P message inbox. Returns the number cleared."""
+    entries = _inbox_read()
+    try:
+        _inbox_file().write_text("[]")
+    except Exception:
+        pass
+    return len(entries)
+
+
+# ---------------------------------------------------------------------------
+# Opt-in memory sync between your own devices.
+#
+# TRUST ASSUMPTION: both nodes must set "p2p_memory_sync": true, and the
+# receiving node must grant the "sync_memory" permission to the peer's IP.
+# A peer with that permission can read AND write your memory cores — only
+# ever grant it to machines you fully trust (normally your own).
+# ---------------------------------------------------------------------------
+
+def _memory_sync_opted_in():
+    from core.config import load_config
+    return bool(load_config().get("p2p_memory_sync"))
+
+
+def p2p_push_memory(peer_ip, core, query="", limit=50, port=11435,
+                    use_tls=None, verify_tls=False):
+    """Push matching entries from a local memory core to a peer.
+
+    Both sides must have "p2p_memory_sync": true, and the peer must grant
+    this IP the "sync_memory" permission.
+    """
+    if not _memory_sync_opted_in():
+        return {"ok": False, "error": "local opt-in missing: set "
+                "'p2p_memory_sync': true in ~/.cortana/config.json"}
+    from core import memory_cores as mc_mod
+    if core not in mc_mod.CORES:
+        return {"ok": False, "error": f"unknown memory core '{core}'"}
+    entries = mc_mod.recall(core, query=query, limit=max(1, min(limit, 200)))
+    texts = [{"text": e.get("text", "")} for e in entries if e.get("text")]
+    res = send_remote_command(peer_ip, "p2p_sync_memory",
+                             {"mode": "push", "core": core, "entries": texts},
+                             port=port, use_tls=use_tls, verify_tls=verify_tls)
+    if not res["ok"]:
+        return res
+    try:
+        return {"ok": True, "data": json.loads(res["data"])}
+    except Exception:
+        return {"ok": True, "data": res["data"]}
+
+
+def p2p_pull_memory(peer_ip, core, limit=50, port=11435,
+                    use_tls=None, verify_tls=False):
+    """Pull a peer's memory-core entries into the local core of the same name.
+
+    Pulled entries are stored locally with source "p2p:<peer_ip>". Same
+    double opt-in as :func:`p2p_push_memory`.
+    """
+    if not _memory_sync_opted_in():
+        return {"ok": False, "error": "local opt-in missing: set "
+                "'p2p_memory_sync': true in ~/.cortana/config.json"}
+    from core import memory_cores as mc_mod
+    if core not in mc_mod.CORES:
+        return {"ok": False, "error": f"unknown memory core '{core}'"}
+    res = send_remote_command(peer_ip, "p2p_sync_memory",
+                             {"mode": "pull", "core": core, "limit": limit},
+                             port=port, use_tls=use_tls, verify_tls=verify_tls)
+    if not res["ok"]:
+        return res
+    try:
+        payload = json.loads(res["data"])
+    except Exception:
+        return {"ok": False, "error": "bad pull response"}
+    stored = 0
+    for e in payload.get("entries") or []:
+        text = (e.get("text") if isinstance(e, dict) else "") or ""
+        if text.strip():
+            r = mc_mod.remember(core, text[:4000],
+                               source=f"p2p:{peer_ip}", scope="p2p-sync")
+            if r.get("ok"):
+                stored += 1
+    return {"ok": True, "pulled": len(payload.get("entries") or []),
+            "stored": stored}
+
+
+def p2p_send_message(peer_ip, text, port=11435, use_tls=None, verify_tls=False):
+    """Send a direct text message to a peer's inbox."""
+    text = (text or "").strip()
+    if not text:
+        return {"ok": False, "error": "empty message"}
+    if len(text) > P2P_MESSAGE_MAX:
+        return {"ok": False, "error": f"message exceeds {P2P_MESSAGE_MAX} chars"}
+    try:
+        from tools.hardware import get_node_id
+        node_id = get_node_id()
+    except Exception:
+        node_id = "unknown"
+    res = send_remote_command(peer_ip, "message",
+                             {"text": text, "from_node_id": node_id},
+                             port=port, use_tls=use_tls, verify_tls=verify_tls)
+    if not res["ok"]:
+        return res
+    try:
+        return {"ok": True, "data": json.loads(res["data"])}
+    except Exception:
+        return {"ok": True, "data": res["data"]}
+
 
 def p2p_status_report(port=11435, use_tls=None, verify_tls=False):
     from rich.table import Table
