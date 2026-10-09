@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#08081a",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "package": "com.nave433.cortana",
+      "permissions": [
+        "INTERNET"
+      ]
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.nave433.cortana",
+      "supportsTablet": true
+    },
+    "name": "Cortana",
+    "orientation": "portrait",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#08081a"
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Cortana uses the microphone so you can dictate chat messages instead of typing.",
+          "speechRecognitionPermission": "Cortana uses speech recognition to turn your voice into text for chat messages."
+        }
+      ]
+    ],
+    "scheme": "cortana",
+    "slug": "cortana",
+    "userInterfaceStyle": "dark",
+    "version": "1.0.0",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
