@@ -504,7 +504,7 @@ def test_launch_gui_falls_back_without_pywebview(monkeypatch, capsys):
 
 def test_app_icon_wired():
     from core.desktop import app_icon_path, ASSETS_DIR
-    mark = ASSETS_DIR / "cortana-mark.png"
+    mark = ASSETS_DIR / "jade-mark.png"
     assert mark.exists(), "generated Cortana mark must ship in assets/"
     assert app_icon_path() == mark
 

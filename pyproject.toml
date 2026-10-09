@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cortana"
-version = "0.2.6"
+name = "jade"
+version = "0.3.0"
 description = "Cortana: local AI assistant for macOS and Linux"
 
 readme = "README.md"
@@ -54,9 +54,11 @@ dev = [
 Homepage = "https://github.com/nave433-blip/jarvis-dev"
 
 [project.scripts]
-cortana = "cli:app"
-cortana-thin = "tools.ollama_thin:main"
-# Deprecated alias: prints a rename notice, then forwards to cortana.
+jade = "cli:app"
+jade-thin = "tools.ollama_thin:main"
+# Deprecated aliases: print a rename notice, then forward to jade.
+cortana = "cli:cortana_shim"
+cortana-thin = "cli:cortana_thin_shim"
 jarvis = "cli:jarvis_shim"
 
 [tool.setuptools]
@@ -64,7 +66,7 @@ py-modules = ["cli"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core", "tools", "watcher", "voice", "memory", "cortana_core"]
+include = ["core", "tools", "watcher", "voice", "memory", "jade_core"]
 
 [tool.setuptools.package-data]
 core = ["voice/profiles/*.json", "voice/proprietary/README.md"]

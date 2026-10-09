@@ -1,3 +1,4 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-$DIR/venv/bin/python $DIR/cli.py "$@"
+# Deprecated launcher: Cortana was renamed to JADE AI (J4D3).
+echo "Note: Cortana has been renamed to Jade (J4D3). Please use ./jade going forward." >&2
+exec "$(dirname "$0")/jade" "$@"

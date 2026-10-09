@@ -34,17 +34,23 @@ from core.ui import next_steps_panel
 
 console = Console()
 
-KEYRING_SERVICE = "cortana-dev"
-# Pre-rename service name: read for compatibility, never written.
-_KEYRING_SERVICE_LEGACY = "jarvis-dev"
+KEYRING_SERVICE = "jade-dev"
+# Pre-rename service names: read for compatibility, never written.
+_KEYRING_SERVICE_LEGACY = "cortana-dev"
+_KEYRING_SERVICE_LEGACY2 = "jarvis-dev"
 
 
 def _account(provider: str) -> str:
-    return f"cortana-{provider.lower()}"
+    return f"jade-{provider.lower()}"
 
 
 def _account_legacy(provider: str) -> str:
     """Pre-rename account name: read for compatibility, never written."""
+    return f"cortana-{provider.lower()}"
+
+
+def _account_legacy2(provider: str) -> str:
+    """Pre-pre-rename account name: read for compatibility, never written."""
     return f"jarvis-{provider.lower()}"
 
 
@@ -122,6 +128,9 @@ def get_key_secure(provider: str) -> Optional[str]:
             if not key:
                 key = keyring.get_password(
                     _KEYRING_SERVICE_LEGACY, _account_legacy(provider))
+            if not key:
+                key = keyring.get_password(
+                    _KEYRING_SERVICE_LEGACY2, _account_legacy2(provider))
             if key:
                 return key
         except Exception:
@@ -168,9 +177,11 @@ def save_key_secure(provider: str, key: str) -> Dict:
 def unset_key_secure(provider: str) -> Dict:
     """Remove a stored key from every store."""
     provider = provider.lower()
-    for service in (KEYRING_SERVICE, _KEYRING_SERVICE_LEGACY):
+    for service, acct in ((KEYRING_SERVICE, _account(provider)),
+                          (_KEYRING_SERVICE_LEGACY, _account_legacy(provider)),
+                          (_KEYRING_SERVICE_LEGACY2, _account_legacy2(provider))):
         try:
-            keyring.delete_password(service, _account(provider))
+            keyring.delete_password(service, acct)
         except Exception:
             pass
     keys = _read_fallback_keys()

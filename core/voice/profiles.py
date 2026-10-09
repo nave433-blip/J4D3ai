@@ -1,7 +1,7 @@
 """Voice profile loading and engine resolution.
 
 Profiles are JSON data files under ``core/voice/profiles/`` — adding a new
-voice is adding a file, no code changes. The ``licensed-cortana`` profile is
+voice is adding a file, no code changes. The ``licensed-jade`` profile is
 a deliberate drop-in slot: it resolves to an honest unavailable engine until
 a licensed voice model is placed in ``core/voice/proprietary/``.
 """

@@ -1910,10 +1910,29 @@ def optimize():
 def jarvis_shim():
     """Deprecated ``jarvis`` entry point: notifies about the rename, then forwards."""
     import sys
-    print("Note: 'jarvis' has been renamed to 'cortana'. Please use 'cortana' going forward.",
+    print("Note: 'jarvis' has been renamed to 'jade' (JADE AI). Please use 'jade' going forward.",
           file=sys.stderr)
-    sys.argv[0] = "cortana"
+    sys.argv[0] = "jade"
     app()
+
+
+def cortana_shim():
+    """Deprecated ``cortana`` entry point: notifies about the rename, then forwards."""
+    import sys
+    print("Note: 'cortana' has been renamed to 'jade' (JADE AI). Please use 'jade' going forward.",
+          file=sys.stderr)
+    sys.argv[0] = "jade"
+    app()
+
+
+def cortana_thin_shim():
+    """Deprecated ``cortana-thin`` entry point: notifies about the rename, then forwards."""
+    import sys
+    print("Note: 'cortana-thin' has been renamed to 'jade-thin'. Please use 'jade-thin' going forward.",
+          file=sys.stderr)
+    from tools.ollama_thin import main
+    sys.argv[0] = "jade-thin"
+    main()
 
 
 if __name__ == "__main__": app()

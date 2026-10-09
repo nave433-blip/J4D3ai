@@ -145,7 +145,7 @@ def _start_dashboard() -> Dict:
     from core.dashboard import start_dashboard_background, register_page
     register_page("/overlay", overlay_html())
     # Serve the tray/app icon to the overlay page.
-    mark = ASSETS_DIR / "cortana-mark.png"
+    mark = ASSETS_DIR / "jade-mark.png"
     if mark.exists():
         register_page("/assets-mark", mark.read_bytes(),
                        content_type="image/png")
@@ -211,7 +211,7 @@ def launch_overlay(width: int = 560, height: int = 420,
 
 def app_icon_path() -> Optional[Path]:
     """Best available app icon file, or None."""
-    for name in ("cortana-mark.png", "cortana-logo.png", "icon.png"):
+    for name in ("jade-mark.png", "cortana-logo.png", "icon.png"):
         p = ASSETS_DIR / name
         if p.exists():
             return p

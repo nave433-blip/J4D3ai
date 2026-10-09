@@ -17,24 +17,26 @@ from core.approvals import confirm
 console = Console()
 
 def _resolve_config_dir():
-    """Return the config dir, migrating ``~/.jarvis`` -> ``~/.cortana`` once.
+    """Return the config dir, migrating ``~/.cortana`` -> ``~/.jade`` once
+    (and legacy ``~/.jarvis`` before that).
 
     The old directory is copied (never moved or deleted); a notice is printed
     to stderr so the user knows what happened. Migration still runs when
-    ``~/.cortana`` exists but has no ``config.json`` yet (e.g. only
+    ``~/.jade`` exists but has no ``config.json`` yet (e.g. only
     auto-created cache dirs) — an existing ``config.json`` always wins.
     """
-    new = Path.home() / ".cortana"
-    old = Path.home() / ".jarvis"
-    if old.is_dir() and not (new / "config.json").exists():
-        try:
-            shutil.copytree(old, new, dirs_exist_ok=True)
-            print("Migrated your Jarvis config (~/.jarvis) to ~/.cortana. "
-                  "The old directory was left untouched.", file=sys.stderr)
-        except Exception as e:
-            print(f"Could not migrate ~/.jarvis to ~/.cortana ({e}); "
-                  "using ~/.jarvis.", file=sys.stderr)
-            return old
+    new = Path.home() / ".jade"
+    for old, label in ((Path.home() / ".cortana", "Cortana"),
+                       (Path.home() / ".jarvis", "Jarvis")):
+        if old.is_dir() and not (new / "config.json").exists():
+            try:
+                shutil.copytree(old, new, dirs_exist_ok=True)
+                print(f"Migrated your {label} config (~/{old.name}) to ~/.jade. "
+                      "The old directory was left untouched.", file=sys.stderr)
+            except Exception as e:
+                print(f"Could not migrate ~/{old.name} to ~/.jade ({e}); "
+                      f"using ~/{old.name}.", file=sys.stderr)
+                return old
     return new
 
 CONFIG_DIR = _resolve_config_dir()
@@ -49,8 +51,8 @@ DEFAULT_CONFIG = {
     "lm_studio_host": "http://localhost:1234",
     "llama_cpp_host": "http://localhost:8080",
     "gpt4all_host": "http://localhost:4891",
-    "cortana_model": "llama3",
-    "cortana_name": "Cortana",
+    "jade_model": "llama3",
+    "jade_name": "Jade",
     "auto_approve": False,  # dev toggle: auto-answer routine confirmations (never on by default)
     "gemini_api_key": "",
     "anthropic_api_key": "",
@@ -157,11 +159,15 @@ def load_config():
     merged = {**DEFAULT_CONFIG, **raw}
     # Migrate pre-rename keys so existing configs keep working. (Check the
     # raw user file, not the merged dict — defaults already contain the new
-    # keys, which would otherwise shadow the old values.)
-    for new_key, old_key in (("cortana_model", "jarvis_model"),
-                             ("cortana_name", "jarvis_name")):
-        if new_key not in raw and old_key in raw:
-            merged[new_key] = raw[old_key]
+    # keys, which would otherwise shadow the old values.) Chain:
+    # jarvis_* -> cortana_* -> jade_*; newest present name wins.
+    for new_key, old_keys in (("jade_model", ("cortana_model", "jarvis_model")),
+                              ("jade_name", ("cortana_name", "jarvis_name"))):
+        if new_key not in raw:
+            for old_key in old_keys:
+                if old_key in raw:
+                    merged[new_key] = raw[old_key]
+                    break
     return copy.deepcopy(merged)
 
 def save_config(config):
@@ -310,20 +316,22 @@ def quick_setup():
     _print_first_use()
 
 def get_env_with_config(key):
-    """Config lookup with env override; honors pre-rename ``JARVIS_*`` spellings.
+    """Config lookup with env override; honors pre-rename ``CORTANA_*`` /
+    ``JARVIS_*`` spellings.
 
-    Precedence: new env var, legacy env var, config file (which itself
-    migrates legacy ``jarvis_*`` keys on load).
+    Precedence: new env var, legacy env vars (newest rename first), config
+    file (which itself migrates legacy keys on load).
     """
     config = load_config()
     env_val = os.getenv(key.upper())
     if env_val:
         return env_val
     kl = key.lower()
-    if kl.startswith("cortana_"):
-        legacy_val = os.getenv("JARVIS_" + kl[len("cortana_"):].upper())
-        if legacy_val:
-            return legacy_val
+    if kl.startswith("jade_"):
+        for prefix in ("CORTANA_", "JARVIS_"):
+            legacy_val = os.getenv(prefix + kl[len("jade_"):].upper())
+            if legacy_val:
+                return legacy_val
     return config.get(kl, "")
 
 def is_dev_mode(config=None):

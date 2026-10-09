@@ -1,0 +1,9 @@
+{
+  "description": "The authentic Jade voice (requires a licensed voice model).",
+  "engine": "licensed",
+  "name": "licensed-jade",
+  "note": "Drop-in slot: place your licensed Jade voice model in core/voice/proprietary/ (see README there), then set voice_id to the model name. Until then this profile reports honestly that no licensed voice is installed.",
+  "pitch": 0,
+  "rate": 0,
+  "voice_id": ""
+}

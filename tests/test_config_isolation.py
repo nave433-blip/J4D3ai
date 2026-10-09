@@ -69,24 +69,36 @@ def test_returned_configs_are_independent(isolated_config_file):
 
 
 def test_get_env_with_config_legacy_fallback(monkeypatch, isolated_config_file):
-    """Pre-rename JARVIS_MODEL env / jarvis_model key feed cortana_model lookups."""
+    """Pre-rename CORTANA_MODEL / JARVIS_MODEL env and cortana_model /
+    jarvis_model keys feed jade_model lookups (newest rename wins)."""
     from core.config import get_env_with_config
+    monkeypatch.delenv("JADE_MODEL", raising=False)
     monkeypatch.delenv("CORTANA_MODEL", raising=False)
-    monkeypatch.setenv("JARVIS_MODEL", "env-legacy")
-    assert get_env_with_config("cortana_model") == "env-legacy"
+    monkeypatch.setenv("JARVIS_MODEL", "env-ancient")
+    assert get_env_with_config("jade_model") == "env-ancient"
+    monkeypatch.setenv("CORTANA_MODEL", "env-legacy")
+    assert get_env_with_config("jade_model") == "env-legacy"
     monkeypatch.delenv("JARVIS_MODEL")
-    isolated_config_file.write_text(json.dumps({"jarvis_model": "cfg-legacy"}))
-    assert get_env_with_config("cortana_model") == "cfg-legacy"
+    monkeypatch.delenv("CORTANA_MODEL")
+    isolated_config_file.write_text(json.dumps({"cortana_model": "cfg-legacy"}))
+    assert get_env_with_config("jade_model") == "cfg-legacy"
+    isolated_config_file.write_text(json.dumps({"jarvis_model": "cfg-ancient"}))
+    assert get_env_with_config("jade_model") == "cfg-ancient"
 
 
 def test_get_env_with_config_precedence(monkeypatch, isolated_config_file):
-    """New env > legacy env > config file."""
+    """New env > legacy env (newest first) > config file."""
     from core.config import get_env_with_config
-    isolated_config_file.write_text(json.dumps({"cortana_model": "cfg-model"}))
+    isolated_config_file.write_text(json.dumps({"jade_model": "cfg-model"}))
+    monkeypatch.delenv("JADE_MODEL", raising=False)
     monkeypatch.delenv("CORTANA_MODEL", raising=False)
     monkeypatch.delenv("JARVIS_MODEL", raising=False)
-    assert get_env_with_config("cortana_model") == "cfg-model"
-    monkeypatch.setenv("JARVIS_MODEL", "legacy-env")
-    assert get_env_with_config("cortana_model") == "legacy-env"
+    assert get_env_with_config("jade_model") == "cfg-model"
+    monkeypatch.setenv("JARVIS_MODEL", "ancient-env")
+    assert get_env_with_config("jade_model") == "ancient-env"
+    monkeypatch.setenv("CORTANA_MODEL", "legacy-env")
+    assert get_env_with_config("jade_model") == "legacy-env"
+    monkeypatch.setenv("JADE_MODEL", "new-env")
+    assert get_env_with_config("jade_model") == "new-env"
     monkeypatch.setenv("CORTANA_MODEL", "new-env")
     assert get_env_with_config("cortana_model") == "new-env"
