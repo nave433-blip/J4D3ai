@@ -140,7 +140,7 @@ export default function SettingsScreen() {
       <Text style={styles.section}>About</Text>
       <View style={styles.card}>
         <Text style={styles.note}>
-          Cortana Mobile 1.0.0 — a thin client for your own Cortana server. It stores no
+          Jade Mobile 1.0.0 — a thin client for your own Jade server. It stores no
           API keys and runs no AI on this phone; every reply comes from the server’s
           /v1/chat/completions endpoint. Chats are stored only on this device.
         </Text>

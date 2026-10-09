@@ -39,8 +39,10 @@ def _get(server, path, token=None):
         url += ("&" if "?" in path else "?") + f"token={token}"
     req = urllib.request.Request(url, headers={"X-Cortana-Token": token} if token and "token=" not in url else {})
     # Prefer header auth in one case; query param otherwise. Simplify: use query.
+    # 30s client timeout: /api/status does real (bounded) provider probes, and
+    # under a full-suite run the loopback request can briefly exceed 5s.
     try:
-        with urllib.request.urlopen(url, timeout=5) as r:
+        with urllib.request.urlopen(url, timeout=30) as r:
             return r.status, r.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read()

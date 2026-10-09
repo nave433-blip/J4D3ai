@@ -92,7 +92,7 @@ export function Composer({ onSend, busy, onStop }: Props) {
           style={styles.input}
           value={text}
           onChangeText={setText}
-          placeholder={listening ? 'Listening…' : 'Message Cortana'}
+          placeholder={listening ? 'Listening…' : 'Message Jade'}
           placeholderTextColor={theme.textDim}
           multiline
           maxLength={8000}

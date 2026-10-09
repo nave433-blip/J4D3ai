@@ -39,7 +39,7 @@ export function ConversationDrawer({
         <Pressable style={styles.scrim} onPress={onClose} />
         <SafeAreaView style={styles.panel}>
           <View style={styles.header}>
-            <Text style={styles.title}>Cortana</Text>
+            <Text style={styles.title}>Jade</Text>
             <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
               <Text style={styles.close}>✕</Text>
             </Pressable>

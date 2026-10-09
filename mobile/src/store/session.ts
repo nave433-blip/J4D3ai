@@ -1,15 +1,15 @@
 /** Auth session persistence. Bearer token + server URL live in the OS keychain. */
 import * as SecureStore from 'expo-secure-store';
-import type { CortanaUser } from '../api/client';
+import type { JadeUser } from '../api/client';
 
-const K_URL = 'cortana.serverUrl';
-const K_TOKEN = 'cortana.sessionToken';
-const K_USER = 'cortana.user';
+const K_URL = 'jade.serverUrl';
+const K_TOKEN = 'jade.sessionToken';
+const K_USER = 'jade.user';
 
 export interface Session {
   serverUrl: string | null;
   token: string | null;
-  user: CortanaUser | null;
+  user: JadeUser | null;
 }
 
 export async function loadSession(): Promise<Session> {
@@ -18,10 +18,10 @@ export async function loadSession(): Promise<Session> {
     SecureStore.getItemAsync(K_TOKEN),
     SecureStore.getItemAsync(K_USER),
   ]);
-  let user: CortanaUser | null = null;
+  let user: JadeUser | null = null;
   if (userRaw) {
     try {
-      user = JSON.parse(userRaw) as CortanaUser;
+      user = JSON.parse(userRaw) as JadeUser;
     } catch {
       user = null;
     }

@@ -14,9 +14,9 @@ export interface Conversation {
   updatedAt: number;
 }
 
-const KEY = 'cortana.conversations.v1';
-const PREF_TTS = 'cortana.ttsEnabled';
-const PREF_MODEL = 'cortana.modelOverride';
+const KEY = 'jade.conversations.v1';
+const PREF_TTS = 'jade.ttsEnabled';
+const PREF_MODEL = 'jade.modelOverride';
 
 export function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;

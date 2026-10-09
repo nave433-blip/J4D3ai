@@ -1,13 +1,13 @@
-# Cortana Mobile (Android + iOS)
+# Jade Mobile (Android + iOS)
 
 One Expo React Native codebase (TypeScript, managed workflow) that builds both
 the Android and iOS apps.
 
 ## What this app is — read this first
 
-**Cortana Mobile is a thin client. It does NOT run Cortana on your phone.**
+**Jade Mobile is a thin client. It does NOT run Jade on your phone.**
 There is no Python brain, no model, and no API key inside this app. Every chat
-message is sent to **your own Cortana server** (`server/` in this repo), which
+message is sent to **your own Jade server** (`server/` in this repo), which
 relays it to whatever chat provider you configured there. If the server is
 down, the app can't chat — that's by design.
 
@@ -17,13 +17,13 @@ What the app stores:
 - Conversations → on this device only (`AsyncStorage`). They are never
   uploaded anywhere.
 
-## 1. Run your Cortana server
+## 1. Run your Jade server
 
 On the computer that will serve the app (your PC, a home server, a VPS —
 anything reachable from your phone):
 
 ```bash
-cd <cortana-repo>            # the repo root, NOT mobile/
+cd <jade-repo>            # the repo root, NOT mobile/
 cp .env.example .env         # then edit .env: set secrets (CORTANA_TOKEN_KEY at minimum)
 pip install -r server/requirements.txt
 CORTANA_DATA_DIR=./server-data CORTANA_TOKEN_KEY="$(openssl rand -base64 32)" \
@@ -121,7 +121,7 @@ npx eas-cli@latest submit --platform ios       # needs App Store Connect API key
 **What this Linux VM cannot do:** produce a *signed* iOS IPA. IPA signing
 requires Xcode/macOS (or EAS cloud build with your Apple Developer account).
 This project is build-ready — the native config, bundle IDs
-(`com.nave433.cortana`), permissions, and icons are all in place — but the
+(`com.nave433.jade`), permissions, and icons are all in place — but the
 actual signed binaries must come from `npx eas-cli@latest build`.
 
 ## 4. Project layout
@@ -141,7 +141,7 @@ mobile/
       auth.tsx        server URL + login/signup
       chat.tsx        Grok/Gemini-style chat: drawer, thread, composer
       settings.tsx    server, account, connectors, TTS, model override, about
-    api/client.ts     Cortana server HTTP client (auth, connectors, chat;
+    api/client.ts     Jade server HTTP client (auth, connectors, chat;
                       streaming via XHR-parsed SSE, plain-JSON fallback)
     store/            secure session (keychain) + conversations (AsyncStorage)
     components/       MessageBubble (markdown), Composer, ConversationDrawer
@@ -167,7 +167,7 @@ mobile/
 | Read replies aloud | ✅ real | `expo-speech`, on-device TTS, toggle in Settings |
 | Voice input (mic) | ✅ real, **EAS builds only** | on-device speech recognition via the official `expo-speech-recognition` package; hidden in Expo Go where the native module can't exist |
 | Stop button | ✅ real | cancels the in-flight request (stream abort / fetch abort), not just a local flag |
-| Running Cortana locally on the phone | ❌ not real, not claimed | the app is a client; the server does the work |
+| Running Jade locally on the phone | ❌ not real, not claimed | the app is a client; the server does the work |
 | Offline chat | ❌ | no server, no replies |
 
 ## 6. Troubleshooting

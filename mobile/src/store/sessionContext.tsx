@@ -1,12 +1,12 @@
 /** App-wide auth session: secure-stored server URL + bearer token + user. */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { CortanaClient } from '../api/client';
+import { JadeClient } from '../api/client';
 import { clearSession, loadSession, saveSession, Session } from './session';
 
 interface SessionCtx {
   ready: boolean;
   session: Session;
-  client: CortanaClient | null;
+  client: JadeClient | null;
   signIn: (serverUrl: string, email: string, password: string) => Promise<void>;
   signUp: (serverUrl: string, email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -32,7 +32,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Validate a stored token against the server before trusting it.
       if (s.serverUrl && s.token) {
         try {
-          const me = await new CortanaClient(s.serverUrl, s.token).me();
+          const me = await new JadeClient(s.serverUrl, s.token).me();
           const fresh = { ...s, user: me };
           await saveSession(fresh);
           setSession(fresh);
@@ -48,7 +48,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const client = useMemo(
-    () => (session.serverUrl ? new CortanaClient(session.serverUrl, session.token) : null),
+    () => (session.serverUrl ? new JadeClient(session.serverUrl, session.token) : null),
     [session.serverUrl, session.token],
   );
 
@@ -56,7 +56,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const serverUrl = normalizeUrl(serverUrlRaw);
     if (!email.trim()) throw new Error('Enter your email.');
     if (!password) throw new Error('Enter your password.');
-    const probe = new CortanaClient(serverUrl);
+    const probe = new JadeClient(serverUrl);
     await probe.health(); // friendly failure if the URL is wrong
     const { user, token } = await probe.login(email.trim(), password);
     const s = { serverUrl, token, user };
@@ -69,7 +69,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const serverUrl = normalizeUrl(serverUrlRaw);
       if (!email.trim()) throw new Error('Enter your email.');
       if (password.length < 12) throw new Error('Password must be at least 12 characters.');
-      const probe = new CortanaClient(serverUrl);
+      const probe = new JadeClient(serverUrl);
       await probe.health();
       await probe.signup(email.trim(), password, displayName.trim() || 'Me');
       // Server signup does not return a token — log in right away.

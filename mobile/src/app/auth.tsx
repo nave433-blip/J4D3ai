@@ -1,4 +1,4 @@
-/** First-run: point at YOUR Cortana server, then sign up or log in. */
+/** First-run: point at YOUR Jade server, then sign up or log in. */
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -50,12 +50,12 @@ export default function AuthScreen() {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Image source={require('../../assets/icon.png')} style={styles.logo} />
-        <Text style={styles.title}>Cortana</Text>
+        <Text style={styles.title}>Jade</Text>
         <Text style={styles.subtitle}>
           Your assistant, running on{'\n'}your own server — not in this app.
         </Text>
 
-        <Text style={styles.label}>Cortana server URL</Text>
+        <Text style={styles.label}>Jade server URL</Text>
         <TextInput
           style={styles.input}
           value={serverUrl}

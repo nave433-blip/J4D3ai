@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ChatMsg, CortanaClient, ServerError } from '../api/client';
+import { ChatMsg, JadeClient, ServerError } from '../api/client';
 import { Composer } from '../components/Composer';
 import { ConversationDrawer } from '../components/ConversationDrawer';
 import { MessageBubble } from '../components/MessageBubble';
@@ -144,7 +144,7 @@ export default function ChatScreen() {
         abortRef.current = () => ctrl.abort();
         const fallbackTimer = setTimeout(() => ctrl.abort(), 120000);
         try {
-          const full = await (client as CortanaClient).chatOnce(
+          const full = await (client as JadeClient).chatOnce(
             apiMessages,
             modelOverride || undefined,
             ctrl.signal,
@@ -162,7 +162,7 @@ export default function ChatScreen() {
       };
 
       // Stream when supported…
-      const stream = (client as CortanaClient).streamChat({
+      const stream = (client as JadeClient).streamChat({
         messages: apiMessages,
         model: modelOverride || undefined,
         onToken: (tok) => {
@@ -274,7 +274,7 @@ export default function ChatScreen() {
             <Text style={styles.headerIcon}>☰</Text>
           </Pressable>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Cortana</Text>
+            <Text style={styles.headerTitle}>Jade</Text>
             <Text style={styles.headerSub} numberOfLines={1}>
               {modelLabel}
             </Text>
@@ -296,7 +296,7 @@ export default function ChatScreen() {
             <Image source={require('../../assets/icon.png')} style={styles.emptyLogo} />
             <Text style={styles.emptyTitle}>How can I help?</Text>
             <Text style={styles.emptySub}>
-              Replies come from your Cortana server —{'\n'}this app is just the window.
+              Replies come from your Jade server —{'\n'}this app is just the window.
             </Text>
             <View style={styles.chips}>
               {SUGGESTIONS.map((s) => (

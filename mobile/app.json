@@ -5,7 +5,7 @@
         "backgroundColor": "#08081a",
         "foregroundImage": "./assets/adaptive-icon.png"
       },
-      "package": "com.nave433.cortana",
+      "package": "com.nave433.jade",
       "permissions": [
         "INTERNET"
       ]
@@ -15,10 +15,10 @@
     ],
     "icon": "./assets/icon.png",
     "ios": {
-      "bundleIdentifier": "com.nave433.cortana",
+      "bundleIdentifier": "com.nave433.jade",
       "supportsTablet": true
     },
-    "name": "Cortana",
+    "name": "Jade",
     "orientation": "portrait",
     "plugins": [
       "expo-router",
@@ -34,13 +34,13 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Cortana uses the microphone so you can dictate chat messages instead of typing.",
-          "speechRecognitionPermission": "Cortana uses speech recognition to turn your voice into text for chat messages."
+          "microphonePermission": "Jade uses the microphone so you can dictate chat messages instead of typing.",
+          "speechRecognitionPermission": "Jade uses speech recognition to turn your voice into text for chat messages."
         }
       ]
     ],
-    "scheme": "cortana",
-    "slug": "cortana",
+    "scheme": "jade",
+    "slug": "jade",
     "userInterfaceStyle": "dark",
     "version": "1.0.0",
     "web": {

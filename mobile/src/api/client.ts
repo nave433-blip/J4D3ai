@@ -1,5 +1,5 @@
 /**
- * HTTP client for the Cortana reference cloud server (`server/` in the repo).
+ * HTTP client for the Jade reference cloud server (`server/` in the repo).
  *
  * The app is a THIN CLIENT: it never bundles the Python brain. Every chat
  * message goes to YOUR server's OpenAI-compatible endpoint, which relays to
@@ -17,7 +17,7 @@
  */
 import { Platform } from 'react-native';
 
-export interface CortanaUser {
+export interface JadeUser {
   id: number;
   email: string;
   display_name: string;
@@ -65,7 +65,7 @@ async function parseError(res: Response): Promise<string> {
   return friendlyError(res.status, msg);
 }
 
-export class CortanaClient {
+export class JadeClient {
   constructor(
     public baseUrl: string,
     public token: string | null = null,
@@ -88,7 +88,7 @@ export class CortanaClient {
     return res.json();
   }
 
-  async signup(email: string, password: string, displayName: string): Promise<CortanaUser> {
+  async signup(email: string, password: string, displayName: string): Promise<JadeUser> {
     const res = await fetch(`${this.url}/v1/accounts/signup`, {
       method: 'POST',
       headers: this.headers(),
@@ -96,22 +96,22 @@ export class CortanaClient {
     });
     if (!res.ok) throw new ServerError(await parseError(res), res.status);
     const body = await res.json();
-    return body.user as CortanaUser;
+    return body.user as JadeUser;
   }
 
-  async login(email: string, password: string): Promise<{ user: CortanaUser; token: string }> {
+  async login(email: string, password: string): Promise<{ user: JadeUser; token: string }> {
     const res = await fetch(`${this.url}/v1/accounts/login`, {
       method: 'POST',
       headers: this.headers(),
       body: JSON.stringify({
         email,
         password,
-        device_label: `Cortana Mobile (${Platform.OS})`,
+        device_label: `Jade Mobile (${Platform.OS})`,
       }),
     });
     if (!res.ok) throw new ServerError(await parseError(res), res.status);
     const body = await res.json();
-    return { user: body.user as CortanaUser, token: body.session_token as string };
+    return { user: body.user as JadeUser, token: body.session_token as string };
   }
 
   async logout(): Promise<void> {
@@ -125,11 +125,11 @@ export class CortanaClient {
     }
   }
 
-  async me(): Promise<CortanaUser> {
+  async me(): Promise<JadeUser> {
     const res = await fetch(`${this.url}/v1/accounts/me`, { headers: this.headers(false) });
     if (!res.ok) throw new ServerError(await parseError(res), res.status);
     const body = await res.json();
-    return body.user as CortanaUser;
+    return body.user as JadeUser;
   }
 
   async connectors(): Promise<ConnectorInfo[]> {
