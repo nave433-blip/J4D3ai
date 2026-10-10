@@ -217,3 +217,59 @@ class TestVoice:
         with patch.object(voicemod.sd, "rec", side_effect=OSError("no device")):
             with pytest.raises(RuntimeError, match="no usable audio input"):
                 voicemod.record_to_wav("/tmp/x.wav")
+
+    def test_transcribe_wav_routes_through_core_voice(self, voicemod, tmp_path,
+                                                      monkeypatch):
+        """transcribe_wav must use the core/voice STT stack, not a direct
+        Google web API call."""
+        import wave as _wave
+
+        wav_path = str(tmp_path / "in.wav")
+        with _wave.open(wav_path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            w.writeframes(b"\x00\x00" * 1600)
+
+        import core.voice.stt as stt_mod
+        import core.voice.base as base
+
+        seen = {}
+
+        class FakeSTT:
+            offline = True
+
+            def transcribe(self, chunk):
+                seen["chunk"] = chunk
+                assert isinstance(chunk, base.AudioChunk)
+                assert chunk.sample_rate == 16000
+                return "hello jade"
+
+        monkeypatch.setattr(stt_mod, "default_stt",
+                            lambda prefer_offline=False: FakeSTT())
+        assert voicemod.transcribe_wav(wav_path) == "hello jade"
+
+    def test_transcribe_wav_surfaces_engine_failure_honestly(
+            self, voicemod, tmp_path, monkeypatch):
+        import wave as _wave
+
+        wav_path = str(tmp_path / "in.wav")
+        with _wave.open(wav_path, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            w.writeframes(b"\x00\x00" * 160)
+
+        import core.voice.stt as stt_mod
+        import core.voice.base as base
+
+        class FailingSTT:
+            offline = False
+
+            def transcribe(self, chunk):
+                raise base.VoiceError("nothing installed")
+
+        monkeypatch.setattr(stt_mod, "default_stt",
+                            lambda prefer_offline=False: FailingSTT())
+        with pytest.raises(RuntimeError, match="nothing installed"):
+            voicemod.transcribe_wav(wav_path)

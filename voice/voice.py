@@ -1,14 +1,18 @@
+"""Legacy CLI voice entry point — now routed through core/voice.
+
+Recording still uses the local microphone (sounddevice/scipy). Transcription
+goes through :func:`core.voice.stt.default_stt` with ``prefer_offline=True``:
+fully offline faster-whisper when installed, otherwise the SpeechRecognition
+backend (honest about needing the internet), otherwise a clean
+"unavailable" error. No audio is ever sent anywhere silently.
+"""
 import os
 import tempfile
+import wave
 
 import sounddevice as sd
 import scipy.io.wavfile as wav
-import speech_recognition as sr
 from core.agent import debug_loop
-
-# NOTE: transcription uses Google's web speech API (recognize_google) and
-# therefore requires an internet connection. It is not offline/local speech
-# recognition.
 
 RECORD_SECONDS = 5
 SAMPLE_RATE = 44100
@@ -31,12 +35,30 @@ def record_to_wav(path, duration=RECORD_SECONDS):
 
 
 def transcribe_wav(path):
-    """Transcribe a WAV file via the speech-recognition backend."""
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(path) as source:
-        audio_data = recognizer.record(source)
-    print("Transcribing...")
-    return recognizer.recognize_google(audio_data)
+    """Transcribe a WAV file via the core/voice STT engine stack.
+
+    Offline-first: faster-whisper when installed, else the
+    SpeechRecognition backend (needs internet — it says so), else an
+    honest VoiceError.
+    """
+    # Lazy imports: this module must stay importable for tests/CLI help
+    # even when the voice subsystem's optional deps are missing.
+    from core.voice.base import AudioChunk, VoiceError
+    from core.voice.stt import default_stt
+
+    with wave.open(path, "rb") as w:
+        chunk = AudioChunk(
+            pcm=w.readframes(w.getnframes()),
+            sample_rate=w.getframerate(),
+            channels=w.getnchannels(),
+            sample_width=w.getsampwidth(),
+        )
+    engine = default_stt(prefer_offline=True)
+    print(f"Transcribing ({'offline' if engine.offline else 'online'} engine)...")
+    try:
+        return engine.transcribe(chunk)
+    except VoiceError as e:
+        raise RuntimeError(f"JADE could not transcribe the audio: {e}")
 
 
 def run_voice():
@@ -50,11 +72,8 @@ def run_voice():
             return
         try:
             cmd = transcribe_wav(wav_path)
-        except sr.UnknownValueError:
-            print("JADE could not understand the audio.")
-            return
-        except sr.RequestError as e:
-            print(f"JADE voice error: {e} (speech recognition needs an internet connection)")
+        except RuntimeError as e:
+            print(f"JADE voice error: {e}")
             return
         print(f"JADE heard: {cmd}")
 

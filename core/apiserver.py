@@ -64,6 +64,16 @@ Endpoints
 
     HTTP 502 when no speech synthesizer exists on the host.
 
+- ``POST /v1/audio/transcriptions``
+    ``multipart/form-data`` with a ``file`` field containing WAV audio
+    (other fields like ``model`` are accepted and ignored)::
+
+        {"text": "hello there"}
+
+    Transcription runs through ``core.voice.stt`` offline-first
+    (faster-whisper when installed). Non-WAV input is HTTP 400; no
+    usable STT engine is HTTP 502.
+
 Auth
 ----
 Every request needs ``Authorization: Bearer <token>``. The token comes from
@@ -292,6 +302,97 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
         self._json({"object": "list", "data": voices})
 
+    @staticmethod
+    def _parse_multipart(body: bytes, content_type: str):
+        """Minimal multipart/form-data parser (stdlib only).
+
+        Returns ((fields, files), None) on success or (None, error_message).
+        fields: {name: str}; files: {name: (filename, bytes)}.
+        """
+        import re
+        m = re.search(r"boundary=([^;]+)", content_type)
+        if not m or not m.group(1).strip().strip('"'):
+            return None, "missing multipart boundary"
+        delimiter = b"--" + m.group(1).strip().strip('"').encode()
+        fields: Dict[str, str] = {}
+        files: Dict[str, tuple] = {}
+        for part in body.split(delimiter)[1:]:
+            if part.strip(b"\r\n-") == b"" or b"\r\n\r\n" not in part:
+                continue
+            head, payload = part.split(b"\r\n\r\n", 1)
+            if payload.endswith(b"\r\n"):
+                payload = payload[:-2]
+            disp = b""
+            for line in head.split(b"\r\n"):
+                if b":" in line:
+                    k, v = line.split(b":", 1)
+                    if k.strip().lower() == b"content-disposition":
+                        disp = v.strip()
+            name_m = re.search(r'name="([^"]*)"',
+                               disp.decode("latin1", "replace"))
+            if not name_m:
+                continue
+            name = name_m.group(1)
+            file_m = re.search(r'filename="([^"]*)"',
+                               disp.decode("latin1", "replace"))
+            if file_m:
+                files[name] = (file_m.group(1), payload)
+            else:
+                fields[name] = payload.decode("utf-8", "replace")
+        return (fields, files), None
+
+    def _h_audio_transcriptions(self) -> None:
+        content_type = self.headers.get("Content-Type", "")
+        if "multipart/form-data" not in content_type:
+            self._error("Content-Type must be multipart/form-data", 400)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except (ValueError, TypeError):
+            length = 0
+        if length <= 0 or length > _MAX_BODY:
+            self._error("invalid or oversized request body", 400)
+            return
+        raw = self.rfile.read(length)
+        parsed, err = self._parse_multipart(raw, content_type)
+        if err:
+            self._error(err, 400)
+            return
+        _fields, files = parsed
+        if "file" not in files:
+            self._error("multipart field 'file' is required", 400)
+            return
+        _filename, audio = files["file"]
+        if len(audio) < 44 or not audio.startswith(b"RIFF") \
+                or audio[8:12] != b"WAVE":
+            self._error("only WAV audio input is supported", 400)
+            return
+        try:
+            import io
+            import wave
+            from core.voice.base import AudioChunk, VoiceError
+            from core.voice.stt import default_stt
+            try:
+                with wave.open(io.BytesIO(audio), "rb") as w:
+                    chunk = AudioChunk(
+                        pcm=w.readframes(w.getnframes()),
+                        sample_rate=w.getframerate(),
+                        channels=w.getnchannels(),
+                        sample_width=w.getsampwidth())
+            except wave.Error as e:
+                self._error(f"could not decode WAV input: {e}", 400)
+                return
+            engine = default_stt(prefer_offline=True)
+            text = engine.transcribe(chunk)
+        except VoiceError as e:
+            self._error(f"transcription unavailable: {e}", 502, "api_error")
+            return
+        except Exception as e:
+            self._error(f"transcription failed: {type(e).__name__}: {e}",
+                        502, "api_error")
+            return
+        self._json({"text": text})
+
     def _h_audio_speech(self, data: Dict[str, Any]) -> None:
         text = data.get("input")
         if not isinstance(text, str) or not text.strip():
@@ -346,6 +447,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 self._error(err, 400)
                 return
             self._h_audio_speech(data)
+            return
+        if parsed.path == "/v1/audio/transcriptions":
+            self._h_audio_transcriptions()
             return
         if parsed.path != "/v1/chat/completions":
             self._error("not found", 404)
