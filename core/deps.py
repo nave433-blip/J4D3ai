@@ -27,8 +27,6 @@ PYTHON_DEPS: Dict[str, str] = {
     "SpeechRecognition": "speech_recognition",
     "prompt_toolkit": "prompt_toolkit",
     "dropbox": "dropbox",
-    "google-api-python-client": "googleapiclient",
-    "google-auth-oauthlib": "google_auth_oauthlib",
     "paramiko": "paramiko",
     "psutil": "psutil",
     "ddgs": "ddgs",

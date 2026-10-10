@@ -65,7 +65,8 @@ tests stay green.
 |---|---|---|
 | Microsoft Graph / Outlook / OneDrive / Teams / OneNote / Azure connectors | clean-room (stdlib `urllib` + own OAuth device-code flow) | ✅ open, no vendor SDK |
 | Google Tasks / Contacts / Docs / Sheets / Slides / YouTube connectors | clean-room (`core/connectors/oauth.py` PKCE + direct REST) | ✅ open, no vendor SDK |
-| `core/google_auth.py` (legacy) | `google-auth-oauthlib` (Apache-2.0) | ⚠️ open license, but vendor SDK — migration to `core/connectors/oauth.py` planned; kept working until then |
+| `core/google_auth.py` (legacy) | clean-room: stdlib PKCE + direct REST (`core/connectors/oauth.py`) | ✅ migrated 2026-10-09 — vendor SDK dropped from deps; old keyring tokens auto-migrate on read |
+| `tools/cloud.py` Google Drive | clean-room: direct Drive v3 REST (`api_get`) | ✅ migrated 2026-10-09 — `googleapiclient` gone |
 | `tools/cloud.py` Dropbox | `dropbox` SDK (MIT) | ✅ open license (MIT); kept, documented |
 | Everything else in `pyproject.toml` | MIT / Apache-2.0 / BSD (litellm, rich, typer, etc.) | ✅ |
 
