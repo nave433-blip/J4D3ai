@@ -43,6 +43,27 @@ Endpoints
     Token usage is reported as zeros: Jade does not track token
     accounting, and it would be dishonest to invent numbers.
 
+- ``POST /v1/audio/speech``
+    OpenAI-style body::
+
+        {"model": "tts-1", "input": "Hello there",
+         "voice": "alloy", "response_format": "wav"}
+
+    Renders speech with the OS-native synthesizer (see
+    ``core.voice.tts``) and returns raw audio bytes. The ``voice`` name
+    is passed to the platform synthesizer best-effort. ``response_format``
+    accepts ``wav``/``aiff`` only — anything else is HTTP 400, because
+    inventing an mp3 encoder would be dishonest. The actual format
+    rendered is reported in the ``Content-Type`` response header
+    (macOS ``say`` writes AIFF; espeak/SAPI write WAV).
+
+- ``GET /v1/audio/voices``
+    Lists the OS synthesizer's voices::
+
+        {"object": "list", "data": [{"id": ..., "name": ...}, ...]}
+
+    HTTP 502 when no speech synthesizer exists on the host.
+
 Auth
 ----
 Every request needs ``Authorization: Bearer <token>``. The token comes from
@@ -78,6 +99,7 @@ import json
 import os
 import secrets
 import socketserver
+import tempfile
 import threading
 import time
 import urllib.parse
@@ -92,6 +114,7 @@ TOKEN_FILE = CONFIG_DIR / "api_token"
 # server to chew unbounded input.
 _MAX_BODY = 1 << 20          # 1 MiB
 _MAX_PROMPT_CHARS = 32_000
+_MAX_TTS_CHARS = 4_096
 
 
 def _get_token() -> str:
@@ -214,6 +237,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_bytes(self, body: bytes, content_type: str,
+                    code: int = 200) -> None:
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _error(self, message: str, code: int,
                err_type: str = "invalid_request_error") -> None:
         self._json({"error": {"message": message, "type": err_type}}, code)
@@ -247,12 +278,74 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
         if parsed.path == "/v1/models":
             self._json({"object": "list", "data": _model_inventory()})
+        elif parsed.path == "/v1/audio/voices":
+            self._h_audio_voices()
         else:
             self._error("not found", 404)
+
+    def _h_audio_voices(self) -> None:
+        try:
+            from core.voice.tts import default_tts
+            voices = default_tts().list_voices()
+        except Exception as e:
+            self._error(f"tts unavailable: {e}", 502, "api_error")
+            return
+        self._json({"object": "list", "data": voices})
+
+    def _h_audio_speech(self, data: Dict[str, Any]) -> None:
+        text = data.get("input")
+        if not isinstance(text, str) or not text.strip():
+            self._error("'input' must be a non-empty string", 400)
+            return
+        if len(text) > _MAX_TTS_CHARS:
+            self._error(f"'input' exceeds {_MAX_TTS_CHARS} characters", 400)
+            return
+        fmt = data.get("response_format", "wav")
+        if fmt not in ("wav", "aiff"):
+            self._error(
+                f"unsupported response_format {fmt!r}: this server renders "
+                "audio with the OS speech synthesizer (wav/aiff)", 400)
+            return
+        voice_name = data.get("voice")
+        try:
+            from core.voice.base import VoiceProfile
+            from core.voice.tts import default_tts
+            engine = default_tts()
+            profile = None
+            if voice_name:
+                profile = VoiceProfile(
+                    name=str(voice_name), description="",
+                    engine="platform", voice_id=str(voice_name))
+            fd, path = tempfile.mkstemp(prefix="jade-tts-", suffix=".audio")
+            os.close(fd)
+            try:
+                mime = engine.synthesize_to_file(text, path, profile)
+                with open(path, "rb") as f:
+                    audio = f.read()
+            finally:
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+        except Exception as e:
+            self._error(f"tts failed: {type(e).__name__}: {e}", 502,
+                        "api_error")
+            return
+        if not audio:
+            self._error("synthesizer produced no audio", 502, "api_error")
+            return
+        self._send_bytes(audio, mime)
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         if not self._require_auth():
+            return
+        if parsed.path == "/v1/audio/speech":
+            data, err = self._read_json()
+            if err:
+                self._error(err, 400)
+                return
+            self._h_audio_speech(data)
             return
         if parsed.path != "/v1/chat/completions":
             self._error("not found", 404)

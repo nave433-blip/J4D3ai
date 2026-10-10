@@ -116,6 +116,16 @@ class TTSEngine(ABC):
     def list_voices(self) -> List[Dict[str, str]]:
         """Return available system voices as [{"id":..., "name":...}]."""
 
+    def synthesize_to_file(self, text: str, path: str,
+                           profile: Optional[VoiceProfile] = None) -> str:
+        """Render ``text`` to an audio file at ``path``.
+
+        Returns the MIME type of the written audio (e.g. "audio/wav").
+        Engines that cannot write files raise :class:`VoiceError` — the
+        default implementation does exactly that.
+        """
+        raise VoiceError("this TTS engine cannot write audio files")
+
 
 # ---------------------------------------------------------------------------
 # Engine registry — proprietary drop-ins register here.

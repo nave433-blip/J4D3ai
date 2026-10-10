@@ -143,3 +143,117 @@ def test_chat_think_failure_is_502(server, monkeypatch):
 def test_token_from_env_not_file(server):
     # Fixture sets JADE_API_TOKEN; the request already proved it works.
     assert server["token"] == "test-token-123"
+
+
+# ---------------------------------------------------------------------------
+# /v1/audio/* — OpenAI-compatible speech endpoints (no network, no real TTS)
+
+
+class _FakeTTS:
+    def __init__(self, voices=None, fail=None):
+        self._voices = voices if voices is not None else [
+            {"id": "v1", "name": "Voice One"}]
+        self._fail = fail
+        self.seen = {}
+
+    def synthesize_to_file(self, text, path, profile=None):
+        self.seen = {"text": text, "profile": profile}
+        if self._fail:
+            raise self._fail
+        with open(path, "wb") as f:
+            f.write(b"FAKEAUDIO:" + text.encode("utf-8"))
+        return "audio/wav"
+
+    def list_voices(self):
+        if self._fail:
+            raise self._fail
+        return self._voices
+
+
+def _stub_tts(monkeypatch, engine):
+    import core.voice.tts as tts_mod
+    monkeypatch.setattr(tts_mod, "default_tts", lambda: engine)
+    return engine
+
+
+def _req_raw(server, method, path, body=None, token="test-token-123"):
+    conn = http.client.HTTPConnection("127.0.0.1", server["port"], timeout=10)
+    headers = {}
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    payload = json.dumps(body).encode() if body is not None else None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+    conn.request(method, path, body=payload, headers=headers)
+    resp = conn.getresponse()
+    data = resp.read()
+    ctype = resp.getheader("Content-Type")
+    conn.close()
+    return resp.status, ctype, data
+
+
+def test_audio_speech_happy_path(server, monkeypatch):
+    engine = _stub_tts(monkeypatch, _FakeTTS())
+    status, ctype, data = _req_raw(server, "POST", "/v1/audio/speech",
+                                   {"model": "tts-1", "input": "hello there",
+                                    "voice": "alloy"})
+    assert status == 200
+    assert ctype == "audio/wav"
+    assert data.startswith(b"FAKEAUDIO:hello there")
+    assert engine.seen["text"] == "hello there"
+    assert engine.seen["profile"].voice_id == "alloy"
+
+
+def test_audio_speech_requires_input(server, monkeypatch):
+    _stub_tts(monkeypatch, _FakeTTS())
+    for bad in ({}, {"input": ""}, {"input": "   "}, {"input": 123}):
+        status, _, data = _req_raw(server, "POST", "/v1/audio/speech", bad)
+        assert status == 400, bad
+        assert b"input" in data
+
+
+def test_audio_speech_rejects_oversize_input(server, monkeypatch):
+    _stub_tts(monkeypatch, _FakeTTS())
+    status, _, _ = _req_raw(server, "POST", "/v1/audio/speech",
+                            {"input": "x" * 5000})
+    assert status == 400
+
+
+def test_audio_speech_rejects_unsupported_format(server, monkeypatch):
+    _stub_tts(monkeypatch, _FakeTTS())
+    status, _, data = _req_raw(server, "POST", "/v1/audio/speech",
+                               {"input": "hi", "response_format": "mp3"})
+    assert status == 400
+    assert b"mp3" in data
+
+
+def test_audio_speech_engine_failure_is_502(server, monkeypatch):
+    from core.voice.base import VoiceError
+    _stub_tts(monkeypatch, _FakeTTS(fail=VoiceError("no synth here")))
+    status, _, data = _req_raw(server, "POST", "/v1/audio/speech",
+                               {"input": "hi"})
+    assert status == 502
+    assert b"no synth here" in data
+
+
+def test_audio_speech_requires_auth(server, monkeypatch):
+    _stub_tts(monkeypatch, _FakeTTS())
+    status, _, _ = _req_raw(server, "POST", "/v1/audio/speech",
+                            {"input": "hi"}, token=None)
+    assert status == 401
+
+
+def test_audio_voices_list(server, monkeypatch):
+    _stub_tts(monkeypatch, _FakeTTS())
+    status, body = _req(server, "GET", "/v1/audio/voices")
+    assert status == 200
+    assert body["object"] == "list"
+    assert body["data"] == [{"id": "v1", "name": "Voice One"}]
+
+
+def test_audio_voices_unavailable_is_502(server, monkeypatch):
+    from core.voice.base import VoiceError
+    _stub_tts(monkeypatch, _FakeTTS(fail=VoiceError("nothing installed")))
+    status, body = _req(server, "GET", "/v1/audio/voices")
+    assert status == 502
+    assert "nothing installed" in body["error"]["message"]

@@ -69,6 +69,10 @@ class UnavailableTTS(TTSEngine):
     def speak_handle(self, text: str, profile: Optional[VoiceProfile] = None):
         raise VoiceError(f"text-to-speech unavailable: {self.reason}")
 
+    def synthesize_to_file(self, text: str, path: str,
+                           profile: Optional[VoiceProfile] = None) -> str:
+        raise VoiceError(f"text-to-speech unavailable: {self.reason}")
+
     def list_voices(self) -> List[Dict[str, str]]:
         raise VoiceError(f"text-to-speech unavailable: {self.reason}")
 
@@ -159,6 +163,67 @@ class PlatformTTS(TTSEngine):
         except OSError as e:
             raise VoiceError(f"could not start speech synthesizer ({e})") from e
         return _SpeakHandle(proc)
+
+    def synthesize_to_file(self, text: str, path: str,
+                           profile: Optional[VoiceProfile] = None) -> str:
+        """Render speech to an audio file. Returns the MIME type written.
+
+        macOS ``say -o`` writes AIFF; espeak-ng/espeak ``-w`` and Windows
+        SAPI ``SetOutputToWaveFile`` write WAV. Raises VoiceError when the
+        platform cannot render to a file.
+        """
+        if not text or not text.strip():
+            raise VoiceError("nothing to speak")
+        plat = _platform()
+        try:
+            if plat == "macos":
+                if shutil.which("say") is None:
+                    raise VoiceError("macOS 'say' command not found")
+                cmd = ["say", "-o", path]
+                if profile and profile.voice_id:
+                    cmd += ["-v", profile.voice_id]
+                if profile and profile.rate:
+                    cmd += ["--rate", str(max(80, min(500, 175 + profile.rate)))]
+                cmd.append(text)
+                mime = "audio/aiff"
+            elif plat == "windows":
+                safe_text = text.replace("'", "''")
+                safe_path = path.replace("'", "''")
+                ps = (
+                    "Add-Type -AssemblyName System.Speech; "
+                    "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                )
+                if profile and profile.voice_id:
+                    ps += f"$s.SelectVoice('{profile.voice_id}'); "
+                if profile and profile.rate:
+                    ps += f"$s.Rate = {[max(-10, min(10, profile.rate // 20))][0]}; "
+                ps += (f"$s.SetOutputToWaveFile('{safe_path}'); "
+                       f"$s.Speak('{safe_text}'); $s.Dispose();")
+                cmd = ["powershell", "-NoProfile", "-Command", ps]
+                mime = "audio/wav"
+            else:
+                binary = (shutil.which("espeak-ng") or shutil.which("espeak"))
+                if binary is None:
+                    raise VoiceError(
+                        "file rendering needs espeak-ng or espeak "
+                        "(spd-say cannot write audio files)")
+                cmd = [binary, "-w", path]
+                if profile and profile.voice_id:
+                    cmd += ["-v", profile.voice_id]
+                if profile and profile.rate:
+                    cmd += ["-s", str(max(80, min(500, 175 + profile.rate)))]
+                cmd.append(text)
+                mime = "audio/wav"
+            proc = subprocess.run(cmd, stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL,
+                                  stdin=subprocess.DEVNULL, timeout=120)
+            if proc.returncode != 0:
+                raise VoiceError(f"speech synthesizer exited with code {proc.returncode}")
+        except FileNotFoundError as e:
+            raise VoiceError(f"speech synthesizer not found ({e})") from e
+        except OSError as e:
+            raise VoiceError(f"could not render speech ({e})") from e
+        return mime
 
     def list_voices(self) -> List[Dict[str, str]]:
         plat = _platform()
