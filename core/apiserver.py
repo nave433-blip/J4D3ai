@@ -27,8 +27,9 @@ Endpoints
     Messages are concatenated into a prompt (each prefixed ``ROLE: ``) and
     routed through ``core.brain.think_structured``. The requested ``model``
     id is mapped to a configured provider when recognizable; otherwise the
-    default model is used. ``stream: true`` is rejected with HTTP 400
-    (streaming is not supported); malformed JSON is HTTP 400; a brain
+    default model is used. ``stream: true`` returns OpenAI-style
+    Server-Sent Events (``text/event-stream``) via ``core.brain.think_stream``,
+    ending with ``data: [DONE]``; malformed JSON is HTTP 400; a brain
     failure is HTTP 502.
 
     Success shape::
@@ -167,6 +168,15 @@ def _lazy_think_structured(context: str, task: str,
 
 
 think_structured = _lazy_think_structured  # noqa: E305 — intentional indirection
+
+
+def _lazy_think_stream(context: str, task: str,
+                       model: Optional[str] = None):
+    from core.brain import think_stream as _real
+    return _real(context, task, model=model)
+
+
+think_stream = _lazy_think_stream  # noqa: E305 — intentional indirection
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +406,87 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
         self._json({"text": text})
 
+    @staticmethod
+    def _chat_prompt(data: Dict[str, Any]) -> Tuple[str, Any, Optional[str]]:
+        """Validate a chat-completions body; return (prompt, model, mapped)."""
+        messages = data.get("messages")
+        if not isinstance(messages, list) or not messages:
+            raise ValueError("'messages' must be a non-empty array")
+        parts: List[str] = []
+        for m in messages:
+            if not isinstance(m, dict):
+                raise ValueError("each message must be an object")
+            role = str(m.get("role", "user"))
+            content = m.get("content", "")
+            if content is None:
+                content = ""
+            if isinstance(content, list):  # content parts — take text pieces
+                content = " ".join(
+                    str(p.get("text", "")) for p in content
+                    if isinstance(p, dict) and p.get("type") == "text")
+            content = str(content)
+            parts.append(f"{role.upper()}: {content}")
+        prompt = "\n\n".join(parts)[:_MAX_PROMPT_CHARS]
+        requested_model = data.get("model")
+        mapped_model = _map_requested_model(
+            requested_model if isinstance(requested_model, str) else None)
+        return prompt, requested_model, mapped_model
+
+    def _h_chat_stream(self, prompt: str, requested_model: Any,
+                       mapped_model: Optional[str]) -> None:
+        """OpenAI-compatible Server-Sent Events stream.
+
+        The generator is primed with one chunk *before* headers go out, so a
+        brain failure still yields a clean JSON 502 instead of a truncated
+        stream. Client disconnects mid-stream stop quietly.
+        """
+        model_name = requested_model if requested_model else "jade-default"
+        try:
+            chunks = think_stream("API server", prompt, model=mapped_model)
+            first = next(chunks, None)
+        except Exception as e:
+            self._error(f"brain error: {type(e).__name__}: {e}", 502,
+                        "api_error")
+            return
+
+        stream_id = secrets.token_hex(12)
+        created = int(time.time())
+
+        def _chunk(delta: Dict[str, Any], finish: Optional[str]) -> bytes:
+            payload = {
+                "id": "chatcmpl-" + stream_id,
+                "object": "chat.completion.chunk",
+                "created": created,
+                "model": model_name,
+                "choices": [{"index": 0, "delta": delta,
+                             "finish_reason": finish}],
+            }
+            return ("data: " + json.dumps(payload) + "\n\n").encode("utf-8")
+
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Accel-Buffering", "no")
+            self.end_headers()
+            out = self.wfile
+            out.write(_chunk({"role": "assistant"}, None))
+            if first:
+                out.write(_chunk({"content": str(first)}, None))
+            out.flush()
+            try:
+                for piece in chunks:
+                    if piece:
+                        out.write(_chunk({"content": str(piece)}, None))
+                        out.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                return  # client went away; nothing more to do
+            out.write(_chunk({}, "stop"))
+            out.write(b"data: [DONE]\n\n")
+            out.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def _h_audio_speech(self, data: Dict[str, Any]) -> None:
         text = data.get("input")
         if not isinstance(text, str) or not text.strip():
@@ -464,33 +555,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         if err:
             self._error(err, 400)
             return
+        try:
+            prompt, requested_model, mapped_model = self._chat_prompt(data)
+        except ValueError as e:
+            self._error(str(e), 400)
+            return
         if data.get("stream"):
-            self._error("streaming not supported", 400)
+            self._h_chat_stream(prompt, requested_model, mapped_model)
             return
-        messages = data.get("messages")
-        if not isinstance(messages, list) or not messages:
-            self._error("'messages' must be a non-empty array", 400)
-            return
-        parts: List[str] = []
-        for m in messages:
-            if not isinstance(m, dict):
-                self._error("each message must be an object", 400)
-                return
-            role = str(m.get("role", "user"))
-            content = m.get("content", "")
-            if content is None:
-                content = ""
-            if isinstance(content, list):  # content parts — take text pieces
-                content = " ".join(
-                    str(p.get("text", "")) for p in content
-                    if isinstance(p, dict) and p.get("type") == "text")
-            content = str(content)
-            parts.append(f"{role.upper()}: {content}")
-        prompt = "\n\n".join(parts)[:_MAX_PROMPT_CHARS]
-
-        requested_model = data.get("model")
-        mapped_model = _map_requested_model(
-            requested_model if isinstance(requested_model, str) else None)
 
         try:
             result = think_structured("API server", prompt, model=mapped_model)

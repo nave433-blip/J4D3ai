@@ -108,13 +108,16 @@ def test_chat_wrong_auth(server):
     assert "error" in body
 
 
-def test_chat_stream_rejected(server, monkeypatch):
-    _stub_think(monkeypatch, {"ok": True, "text": "nope", "provider": "stub"})
-    status, body = _req(server, "POST", "/v1/chat/completions", {
+def test_chat_stream_supported_not_rejected(server, monkeypatch):
+    # Streaming used to be a 400 ("streaming not supported"); it is now
+    # served as OpenAI-style SSE.
+    _stub_stream(monkeypatch, ["nope"])
+    status, ctype, raw = _req_stream(server, {
         "model": "jade-default", "stream": True,
         "messages": [{"role": "user", "content": "hi"}]})
-    assert status == 400
-    assert body["error"]["message"] == "streaming not supported"
+    assert status == 200
+    assert ctype == "text/event-stream"
+    assert _parse_sse(raw)[-1] == "[DONE]"
 
 
 def test_chat_malformed_json(server):
@@ -434,3 +437,84 @@ def test_map_requested_model_case_insensitive(monkeypatch):
     assert api_mod._map_requested_model("openai/anything") == "openai/anything"
     assert api_mod._map_requested_model("OPENAI/anything") == "OPENAI/anything"
     assert api_mod._map_requested_model("anthropic/claude") is None
+
+
+# ---------------------------------------------------------------------------
+# Round: SSE streaming for /v1/chat/completions
+# ---------------------------------------------------------------------------
+
+def _stub_stream(monkeypatch, pieces):
+    def fake(context, task, model=None):
+        fake.seen = {"context": context, "task": task, "model": model}
+        yield from pieces
+    monkeypatch.setattr(api_mod, "think_stream", fake)
+    return fake
+
+
+def _req_stream(server, body):
+    conn = http.client.HTTPConnection("127.0.0.1", server["port"], timeout=10)
+    conn.request("POST", "/v1/chat/completions",
+                 body=json.dumps(body).encode(),
+                 headers={"Authorization": "Bearer test-token-123",
+                          "Content-Type": "application/json"})
+    resp = conn.getresponse()
+    raw = resp.read().decode()
+    conn.close()
+    return resp.status, resp.getheader("Content-Type"), raw
+
+
+def _parse_sse(raw):
+    events = []
+    for block in raw.split("\n\n"):
+        block = block.strip()
+        if not block:
+            continue
+        assert block.startswith("data: "), block
+        payload = block[len("data: "):]
+        events.append(payload if payload == "[DONE]" else json.loads(payload))
+    return events
+
+
+def test_chat_stream_sse_shape(server, monkeypatch):
+    _stub_stream(monkeypatch, ["Hello", " world"])
+    status, ctype, raw = _req_stream(server, {
+        "model": "jade-default", "stream": True,
+        "messages": [{"role": "user", "content": "hi"}]})
+    assert status == 200
+    assert ctype == "text/event-stream"
+    events = _parse_sse(raw)
+    assert events[-1] == "[DONE]"
+    chunks = events[:-1]
+    assert chunks[0]["object"] == "chat.completion.chunk"
+    assert chunks[0]["choices"][0]["delta"] == {"role": "assistant"}
+    text = "".join(c["choices"][0]["delta"].get("content", "")
+                   for c in chunks)
+    assert text == "Hello world"
+    assert chunks[-1]["choices"][0]["finish_reason"] == "stop"
+    assert all(c["choices"][0]["finish_reason"] is None for c in chunks[:-1])
+
+
+def test_chat_stream_brain_failure_is_clean_502(server, monkeypatch):
+    def fake(context, task, model=None):
+        raise RuntimeError("model exploded")
+        yield  # pragma: no cover — makes this a generator
+    monkeypatch.setattr(api_mod, "think_stream", fake)
+    status, ctype, raw = _req_stream(server, {
+        "model": "jade-default", "stream": True,
+        "messages": [{"role": "user", "content": "hi"}]})
+    assert status == 502
+    assert ctype == "application/json"
+    assert "brain error" in json.loads(raw)["error"]["message"]
+
+
+def test_chat_stream_still_validates_messages(server, monkeypatch):
+    _stub_stream(monkeypatch, ["x"])
+    conn = http.client.HTTPConnection("127.0.0.1", server["port"], timeout=10)
+    conn.request("POST", "/v1/chat/completions",
+                 body=json.dumps({"model": "m", "stream": True,
+                                  "messages": []}).encode(),
+                 headers={"Authorization": "Bearer test-token-123",
+                          "Content-Type": "application/json"})
+    resp = conn.getresponse()
+    assert resp.status == 400
+    conn.close()
