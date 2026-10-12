@@ -14,10 +14,13 @@ tests stay green.
 
 ## The list
 
-### 1. GitHub repo rename — NEEDS EVAN
-- **What:** rename `nave433-blip/cortana` to the JADE name.
-- **Until then:** remote URLs, clone instructions, and badges still say
-  `cortana`. Nothing breaks; it's just the old name on the outside.
+### 1. GitHub repo rename — DONE 2026-10-12
+- **What:** ~~rename `nave433-blip/cortana` to the JADE name~~ — done:
+  the repo is now **`nave433-blip/J4D3ai`**.
+- `install.sh` clone/curl URLs, `core/update.py` release-check URL, and
+  `core/repair.py` issue-reporting URL all point at `nave433-blip/J4D3ai`.
+- Remaining: the local directory is still `~/workspace/jarvis-dev`
+  (see item 2); any other stale `cortana` strings in docs are cosmetic.
 
 ### 2. Local directory rename — NEEDS EVAN (structural)
 - **What:** `~/workspace/jarvis-dev` is the old structural path.
