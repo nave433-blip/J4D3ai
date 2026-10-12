@@ -196,14 +196,30 @@ class TestVoice:
     def test_run_voice_uses_tempfile_and_cleans_up(self, voicemod, tmp_path):
         with patch.object(voicemod, "record_to_wav") as rec, \
              patch.object(voicemod, "transcribe_wav", return_value="hi jade"), \
-             patch.object(voicemod, "debug_loop") as loop:
+             patch.object(voicemod, "debug_loop") as loop, \
+             patch.object(voicemod, "speak_reply") as speak:
             voicemod.run_voice()
         path = rec.call_args[0][0]
         assert path != str(tmp_path / "cmd.wav")
         assert "jade-voice-" in os.path.basename(path)
         assert not os.path.exists(path), "temp wav must be removed"
         assert (tmp_path / "cmd.wav").exists() is False
-        loop.assert_called_once_with("hi jade")
+        loop.assert_called_once()
+        assert loop.call_args[0] == ("hi jade",)
+        assert callable(loop.call_args[1]["on_turn"])
+        speak.assert_not_called()  # debug_loop stub produced no turns
+
+    def test_run_voice_speaks_last_assistant_reply(self, voicemod):
+        def fake_loop(cmd, on_turn=None):
+            on_turn("user", cmd)
+            on_turn("assistant", "first draft")
+            on_turn("assistant", "final answer")
+        with patch.object(voicemod, "record_to_wav"), \
+             patch.object(voicemod, "transcribe_wav", return_value="hi jade"), \
+             patch.object(voicemod, "debug_loop", side_effect=fake_loop), \
+             patch.object(voicemod, "speak_reply") as speak:
+            voicemod.run_voice()
+        speak.assert_called_once_with("final answer")
 
     def test_run_voice_handles_no_microphone(self, voicemod, capsys):
         with patch.object(voicemod, "record_to_wav",
@@ -273,3 +289,56 @@ class TestVoice:
                             lambda prefer_offline=False: FailingSTT())
         with pytest.raises(RuntimeError, match="nothing installed"):
             voicemod.transcribe_wav(wav_path)
+
+
+class TestSpeakReply:
+    @pytest.fixture()
+    def voicemod(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.chdir(tmp_path)
+        _install_stubs()
+        import voice.voice as v
+        yield v
+        for m in ("voice.voice", "sounddevice", "scipy", "scipy.io",
+                  "scipy.io.wavfile", "speech_recognition"):
+            sys.modules.pop(m, None)
+
+    def test_speak_reply_uses_default_tts(self, voicemod, monkeypatch):
+        spoken = []
+
+        class FakeTTS:
+            def speak(self, text, profile=None):
+                spoken.append(text)
+
+        # voice.voice imports default_tts lazily inside speak_reply, so
+        # patch the source module attribute it resolves.
+        import core.voice.tts as ttsmod
+        monkeypatch.setattr(ttsmod, "default_tts", lambda: FakeTTS())
+        voicemod.speak_reply("hello there")
+        assert spoken == ["hello there"]
+
+    def test_speak_reply_trims_long_text(self, voicemod, monkeypatch):
+        spoken = []
+
+        class FakeTTS:
+            def speak(self, text, profile=None):
+                spoken.append(text)
+
+        import core.voice.tts as ttsmod
+        monkeypatch.setattr(ttsmod, "default_tts", lambda: FakeTTS())
+        voicemod.speak_reply("word " * 500)
+        assert len(spoken[0]) <= 605
+        assert spoken[0].endswith("…")
+
+    def test_speak_reply_degrades_gracefully(self, voicemod, monkeypatch,
+                                             capsys):
+        from core.voice.base import VoiceError
+        import core.voice.tts as ttsmod
+
+        class DeadTTS:
+            def speak(self, text, profile=None):
+                raise VoiceError("no synthesizer")
+
+        monkeypatch.setattr(ttsmod, "default_tts", lambda: DeadTTS())
+        voicemod.speak_reply("hi")  # must not raise
+        assert "voice out unavailable" in capsys.readouterr().out

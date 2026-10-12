@@ -77,8 +77,38 @@ def run_voice():
             return
         print(f"JADE heard: {cmd}")
 
+        # Capture the assistant's reply so it can be spoken back.
+        replies = []
+        def _on_turn(role, text):
+            if role == "assistant" and text:
+                replies.append(text)
+
         # Use the debug_loop to allow tool execution
-        debug_loop(cmd)
+        debug_loop(cmd, on_turn=_on_turn)
+        if replies:
+            speak_reply(replies[-1])
     finally:
         if os.path.exists(wav_path):
             os.remove(wav_path)
+
+
+def speak_reply(text):
+    """Speak a text reply via the default TTS engine.
+
+    Best-effort: TTS failures degrade to a printed note, never a crash.
+    Very long replies are trimmed so a tool-heavy answer doesn't turn
+    into a ten-minute monologue.
+    """
+    from core.voice.tts import default_tts
+    from core.voice.base import VoiceError
+    text = " ".join(text.split())
+    if len(text) > 600:
+        text = text[:600].rsplit(" ", 1)[0] + "…"
+    try:
+        print("JADE speaking…")
+        default_tts().speak(text)
+    except VoiceError as e:
+        # default_tts() never raises itself — it returns an honest
+        # UnavailableTTS whose speak() raises; either way we degrade
+        # to text instead of crashing the voice session.
+        print(f"(voice out unavailable: {e})")
