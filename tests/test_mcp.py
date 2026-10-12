@@ -63,7 +63,8 @@ def fake_server_path(tmp_path):
 @pytest.fixture()
 def configured_server(monkeypatch, fake_server_path):
     monkeypatch.setattr(mcp, "get_servers_config", lambda: {
-        "fake": {"command": sys.executable, "args": [fake_server_path]}})
+        "fake": {"command": sys.executable, "args": [fake_server_path],
+                 "framing": "ndjson"}})
     return "fake"
 
 
@@ -128,7 +129,7 @@ def test_server_error_surfaces(tmp_path):
                 "error": {"code": -32000, "message": "init denied"}}) + "\\n")
             sys.stdout.flush()
     '''))
-    client = mcp.MCPClient(sys.executable, [str(p)])
+    client = mcp.MCPClient(sys.executable, [str(p)], framing="ndjson")
     try:
         with pytest.raises(mcp.MCPError, match="init denied"):
             client.initialize(timeout=5)

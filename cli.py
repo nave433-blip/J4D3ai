@@ -93,6 +93,46 @@ def _show_welcome_once() -> None:
 
 
 app = typer.Typer(help="🚀 JADE: The Ultimate Local AI Coding Assistant", add_completion=False)
+
+# MCP subcommand group
+mcp_app = typer.Typer(help="Model Context Protocol (MCP) client", add_completion=False)
+app.add_typer(mcp_app, name="mcp")
+
+
+@mcp_app.command("servers")
+def mcp_servers_cmd():
+    """List configured MCP servers."""
+    from core.mcp_client import cmd_servers
+    cmd_servers()
+
+
+@mcp_app.command("tools")
+def mcp_tools_cmd(server: Annotated[Optional[str], typer.Argument(help="Server name (optional)")] = None):
+    """List tools exposed by one or all MCP servers."""
+    from core.mcp_client import cmd_tools
+    cmd_tools(server)
+
+
+@mcp_app.command("call")
+def mcp_call_cmd(
+    server: Annotated[str, typer.Argument(help="MCP server name")],
+    tool: Annotated[str, typer.Argument(help="Tool name")],
+    args_json: Annotated[str, typer.Argument(help="JSON object of arguments")] = "",
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
+):
+    """Call an MCP tool on a configured server."""
+    from core.mcp_client import cmd_call
+    cmd_call(server, tool, args_json, auto_yes=yes)
+
+
+@mcp_app.command("setup")
+def mcp_setup_cmd():
+    """Show MCP configuration help."""
+    from core.mcp_client import setup_docs
+    from rich.console import Console
+    Console().print(setup_docs())
+
+
 console = Console()
 
 @app.callback(invoke_without_command=True)

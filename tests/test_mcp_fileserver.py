@@ -24,7 +24,8 @@ def fs_server(tmp_path, monkeypatch):
     (root / "sub").mkdir()
     monkeypatch.setattr(mcp, "get_servers_config", lambda: {
         "fs": {"command": sys.executable,
-               "args": [FIXTURE, "--root", str(root)]}})
+               "args": [FIXTURE, "--root", str(root)],
+               "framing": "ndjson"}})
     client = mcp.connect_server("fs")
     yield client, root
     client.close()

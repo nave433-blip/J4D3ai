@@ -10,7 +10,7 @@ from rich.console import Console
 
 console = Console()
 
-GITHUB_REPO = "nave433-blip/jarvis-dev"
+GITHUB_REPO = "nave433-blip/cortana"
 # Upgraded version for the logic integration
 CURRENT_VERSION = "0.3.0"
 
