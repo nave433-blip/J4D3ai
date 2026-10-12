@@ -386,3 +386,51 @@ def test_audio_transcriptions_rejects_non_multipart(server, monkeypatch):
     resp = conn.getresponse()
     assert resp.status == 400
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Round: API edge-case hardening
+# ---------------------------------------------------------------------------
+
+def test_oversized_body_rejected_with_clear_message(server):
+    # Content-Length above the cap gets an explicit "too large" 400 rather
+    # than a confusing JSON-decode error from a truncated read.
+    conn = http.client.HTTPConnection("127.0.0.1", server["port"], timeout=10)
+    conn.putrequest("POST", "/v1/chat/completions")
+    conn.putheader("Authorization", "Bearer test-token-123")
+    conn.putheader("Content-Type", "application/json")
+    conn.putheader("Content-Length", str(api_mod._MAX_BODY + 1))
+    conn.endheaders()
+    # Send only a small prefix; the server must reject on the length alone.
+    conn.send(b'{"model": "x", "messages": []}')
+    resp = conn.getresponse()
+    body = json.loads(resp.read() or b"{}")
+    conn.close()
+    assert resp.status == 400
+    assert "exceeds" in body["error"]["message"]
+
+
+def test_non_string_voice_rejected(server):
+    status, body = _req(server, "POST", "/v1/audio/speech",
+                        {"model": "tts-1", "input": "hi",
+                         "voice": {"name": "alloy"}})
+    assert status == 400
+    assert "must be a string" in body["error"]["message"]
+
+
+def test_null_message_content_treated_as_empty(server, monkeypatch):
+    fake = _stub_think(monkeypatch, {"ok": True, "text": "r", "provider": "s"})
+    status, body = _req(server, "POST", "/v1/chat/completions", {
+        "model": "jade-default",
+        "messages": [{"role": "user", "content": None}]})
+    assert status == 200
+    assert "None" not in fake.seen["task"], \
+        "null content must not become the literal string 'None'"
+
+
+def test_map_requested_model_case_insensitive(monkeypatch):
+    monkeypatch.setattr(api_mod, "_model_inventory", lambda: [
+        {"id": "openai/gpt-4o", "object": "model", "owned_by": "OpenAI"}])
+    assert api_mod._map_requested_model("openai/anything") == "openai/anything"
+    assert api_mod._map_requested_model("OPENAI/anything") == "OPENAI/anything"
+    assert api_mod._map_requested_model("anthropic/claude") is None

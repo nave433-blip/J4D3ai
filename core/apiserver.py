@@ -222,8 +222,9 @@ def _map_requested_model(requested: Optional[str]) -> Optional[str]:
     if requested in ids:
         return requested
     # ``provider/<anything>`` with a configured provider is recognizable.
+    # Provider names compare case-insensitively ("openai/x" vs "OpenAI").
     provider = requested.split("/", 1)[0].lower()
-    if any(p == provider for p in ids.values()):
+    if any(p.lower() == provider for p in ids.values()):
         return requested
     return None
 
@@ -273,7 +274,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             length = 0
         if length <= 0:
             return {}, None
-        raw = self.rfile.read(min(length, _MAX_BODY))
+        if length > _MAX_BODY:
+            return None, "request body exceeds the 1 MiB limit"
+        raw = self.rfile.read(length)
         try:
             data = json.loads(raw.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
@@ -408,6 +411,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 "audio with the OS speech synthesizer (wav/aiff)", 400)
             return
         voice_name = data.get("voice")
+        if voice_name is not None and not isinstance(voice_name, str):
+            self._error("'voice' must be a string", 400)
+            return
         try:
             from core.voice.base import VoiceProfile
             from core.voice.tts import default_tts
@@ -472,6 +478,8 @@ class _Handler(http.server.BaseHTTPRequestHandler):
                 return
             role = str(m.get("role", "user"))
             content = m.get("content", "")
+            if content is None:
+                content = ""
             if isinstance(content, list):  # content parts — take text pieces
                 content = " ".join(
                     str(p.get("text", "")) for p in content
