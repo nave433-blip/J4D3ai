@@ -9,7 +9,6 @@ Improvements:
 - P2P Swarm (Hive Mind) integration
 """
 
-import requests
 import os
 import json
 import logging
@@ -262,6 +261,7 @@ class OllamaProvider(LLMProvider):
         self.host = random.choice(self.hosts)
 
     def ask(self, prompt, context="", options=None):
+        import requests  # lazy: ~0.2s import; network paths only
         payload = {"model": self.model, "messages": [{"role": "user", "content": prompt}], "stream": False}
         if options: payload["options"] = options
 

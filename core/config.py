@@ -1,7 +1,6 @@
 import copy
 import json
 import os
-import requests
 import shutil
 import threading
 import datetime
@@ -175,6 +174,7 @@ def save_config(config):
     with open(CONFIG_FILE, "w") as f: json.dump(config, f, indent=4)
 
 def detect_ollama(max_attempts: int = 3):
+    import requests  # lazy: ~0.4s import; only needed for Ollama probing
     hosts = ["http://localhost:11434", "http://127.0.0.1:11434"]
     for host in hosts:
         try:

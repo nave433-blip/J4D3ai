@@ -1,4 +1,3 @@
-import requests
 import os
 import sys
 import subprocess
@@ -10,13 +9,14 @@ from rich.console import Console
 
 console = Console()
 
-GITHUB_REPO = "nave433-blip/cortana"
+GITHUB_REPO = "nave433-blip/J4D3ai"
 # Upgraded version for the logic integration
 CURRENT_VERSION = "0.3.0"
 
 
 def _get_latest_release_from_github() -> Optional[str]:
     """Query GitHub Releases for latest tag/version. Fallbacks to raw pyproject if needed."""
+    import requests  # lazy: ~0.3s import; only needed for the update check
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
         r = requests.get(url, timeout=6)

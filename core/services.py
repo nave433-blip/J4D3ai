@@ -5,7 +5,6 @@ Adds support for 'nemotron' and 'qwen', robust Ollama repair helper, and normali
 """
 
 from typing import Dict, Optional, List, Any
-import requests
 import json
 import os
 import sys
@@ -189,6 +188,7 @@ def get_connected_providers() -> List[str]:
 # Validation helpers (enhanced)
 # --------------------
 def validate_gemini(key: str, timeout: float = 5.0) -> Dict:
+    import requests  # lazy: ~0.2s import; network paths only
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
         r = requests.get(url, timeout=timeout)
@@ -201,6 +201,7 @@ def validate_gemini(key: str, timeout: float = 5.0) -> Dict:
         return {"ok": False, "error": str(e), "error_type": "unreachable"}
 
 def validate_openai(key: str, timeout: float = 5.0) -> Dict:
+    import requests  # lazy: ~0.2s import; network paths only
     url = "https://api.openai.com/v1/models"
     headers = {"Authorization": f"Bearer {key}"}
     try:
@@ -214,6 +215,7 @@ def validate_openai(key: str, timeout: float = 5.0) -> Dict:
         return {"ok": False, "error": str(e), "error_type": "unreachable"}
 
 def validate_ollama(host: str, timeout: float = 2.0) -> Dict:
+    import requests  # lazy: ~0.2s import; network paths only
     """
     Probes common Ollama endpoints and returns a helpful status.
     """
@@ -373,6 +375,7 @@ def _enrich_validation(provider: str, result: Dict) -> Dict:
 
 
 def validate_key_provider(provider: str, key: str, timeout: float = 8.0) -> Dict:
+    import requests  # lazy: ~0.2s import; network paths only
     """Validate a key provider against its real, documented endpoint.
 
     Returns {"ok", "provider", "note"?/"models_count"?, "error"?, "error_type"?}.

@@ -68,13 +68,6 @@ from core.nave_loop import run_nave_loop
 from core.handler import CommandHandler
 import core.menus as menus
 
-# Prompt Toolkit for slash commands
-from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import WordCompleter
-from prompt_toolkit.styles import Style
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.formatted_text import HTML
-
 import logging
 import warnings
 warnings.simplefilter("ignore", SyntaxWarning)
@@ -344,6 +337,13 @@ def process_think_res(res: Any, fallback_text: str = "") -> str:
 def interactive():
     """Launch the main interactive Gemini-style prompt."""
     from core.config import verify_and_fix_local_llm
+    # prompt_toolkit (~0.4s import) loads only for the interactive REPL —
+    # --help and one-shot commands never pay for it.
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.completion import WordCompleter
+    from prompt_toolkit.styles import Style
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.formatted_text import HTML
     # JADE_SKIP_STARTUP=1 (tests, CI, piped use) also skips interactive()'s
     # own startup routines so piped stdin reaches the REPL instead of being
     # eaten by setup prompts. Real interactive use is unchanged.
