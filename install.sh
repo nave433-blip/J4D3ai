@@ -147,6 +147,15 @@ source "venv/bin/activate"
 
 info "📦 Installing JADE and dependencies (a few minutes on first run)..."
 pip install --quiet --upgrade pip
+# pip unpacks wheels under $TMPDIR (default /tmp). On machines where /tmp
+# is a small tmpfs, big wheels (scipy, torch-adjacent) fail mid-unpack
+# with "No such file or directory" — redirect to the install dir instead.
+TMP_AVAIL_KB="$(df -k /tmp 2>/dev/null | awk 'NR==2 {print $4}')"
+if [[ -n "$TMP_AVAIL_KB" ]] && [[ "$TMP_AVAIL_KB" -lt 1048576 ]]; then
+    mkdir -p "$JARVIS_DIR/.tmp"
+    export TMPDIR="$JARVIS_DIR/.tmp"
+    warn "⚠️  /tmp is small ($(( TMP_AVAIL_KB / 1024 )) MiB) — using ${TMPDIR} for pip temp files."
+fi
 pip install --quiet -e .
 
 # --- 5. global launcher -------------------------------------------------------------
