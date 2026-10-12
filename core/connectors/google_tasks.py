@@ -16,7 +16,7 @@ class GoogleTasksConnector(GoogleConnector):
     scopes = ["https://www.googleapis.com/auth/tasks"]
 
     def actions(self) -> Dict[str, Dict[str, Any]]:
-        tok = (self.get_token() or {}).get("access_token", "")
+        tok = self.fresh_access_token()
 
         def _lists():
             res = api_get(f"{BASE}/users/@me/lists", tok,

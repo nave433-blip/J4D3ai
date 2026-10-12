@@ -36,7 +36,7 @@ class GmailConnector(GoogleConnector):
     scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
 
     def actions(self) -> Dict[str, Dict[str, Any]]:
-        tok = (self.get_token() or {}).get("access_token", "")
+        tok = self.fresh_access_token()
         base = "https://gmail.googleapis.com/gmail/v1/users/me"
 
         def _list(limit: int = 10):

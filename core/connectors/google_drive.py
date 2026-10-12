@@ -14,7 +14,7 @@ class GoogleDriveConnector(GoogleConnector):
     scopes = ["https://www.googleapis.com/auth/drive.readonly"]
 
     def actions(self) -> Dict[str, Dict[str, Any]]:
-        tok = (self.get_token() or {}).get("access_token", "")
+        tok = self.fresh_access_token()
 
         def _list(folder: str = "root", limit: int = 20):
             q = f"'{folder}' in parents and trashed=false"

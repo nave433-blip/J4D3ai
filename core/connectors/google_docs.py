@@ -43,7 +43,7 @@ class GoogleDocsConnector(GoogleConnector):
               "https://www.googleapis.com/auth/presentations"]
 
     def actions(self) -> Dict[str, Dict[str, Any]]:
-        tok = (self.get_token() or {}).get("access_token", "")
+        tok = self.fresh_access_token()
 
         # ---- Docs ------------------------------------------------------
         def _read_doc(document_id: str, limit: int = 12000):

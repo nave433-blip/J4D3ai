@@ -22,7 +22,7 @@ class GoogleContactsConnector(GoogleConnector):
     scopes = ["https://www.googleapis.com/auth/contacts"]
 
     def actions(self) -> Dict[str, Dict[str, Any]]:
-        tok = (self.get_token() or {}).get("access_token", "")
+        tok = self.fresh_access_token()
 
         def _summarize(person: Dict[str, Any]) -> Dict[str, Any]:
             names = person.get("names", [])
