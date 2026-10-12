@@ -34,7 +34,14 @@ point is now `jade`.
 - **Startup**: `jade --help` imports in ~0.45s (was ~1.55s) — `prompt_toolkit`
   and `requests` load lazily only on the paths that need them.
 - **Installer** (`install.sh`): one-line macOS/Linux install (venv + `jade`
-  launcher + smoke test); repo URL updated to `nave433-blip/J4D3ai`.
+  launcher + smoke test); repo URL updated to `nave433-blip/J4D3ai`; pip
+  temp files redirect to the install dir when `/tmp` is a small tmpfs
+  (fixes real mid-install scipy unpack failure); end-to-end install
+  verified on this machine.
+- **Voice**: `jade voice` now **speaks its reply aloud** via the TTS engine
+  (was: transcribe-only). Long replies trimmed at a word boundary.
+- **CLI UX**: `jade --help` no longer triggers the dependency self-repair
+  (was: ~60s of pip retries just to print help).
 - **Tests**: 782 passed, 1 skipped. (12 failures are pre-existing environment
   issues — REPL tests needing a TTY and the litellm loader test where litellm
   isn't installed — verified identical on unmodified code.)
