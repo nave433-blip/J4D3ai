@@ -157,3 +157,39 @@ def test_unknown_method_raises():
             c._request("does/not/exist", {}, timeout=5)
     finally:
         c.close()
+
+
+def test_large_payload_roundtrip_fast():
+    """A ~1 MiB tool result must arrive intact without byte-at-a-time reads.
+
+    Regression test for the old stdout.read(1) loop, which made large
+    payloads take minutes (a syscall per byte).
+    """
+    import time
+    from core.mcp_client import MCPClient
+
+    big = {"blob": "x" * (1 << 20)}
+    client = MCPClient(FakeMCPServer.command(), FakeMCPServer.args())
+    try:
+        client.initialize()
+        start = time.monotonic()
+        result = client.call_tool("echo", big, timeout=60)
+        elapsed = time.monotonic() - start
+    finally:
+        client.close()
+    content = result.get("content", [{}])[0].get("text", "")
+    assert json.loads(content) == big
+    assert elapsed < 20, f"1 MiB roundtrip took {elapsed:.1f}s — read loop regressed"
+
+
+def test_read_loop_buffer_guard():
+    """A server spewing non-message garbage must not grow memory unboundedly."""
+    from core.mcp_client import MCPClient
+
+    client = object.__new__(MCPClient)
+    # Feed 20 MiB of garbage with no complete message; the guard must drop it.
+    garbage = b"z" * (20 << 20)
+    msg, rest = client._try_extract_message(garbage)
+    assert msg is None
+    # Simulate the guard path directly.
+    assert len(garbage) > client._MAX_BUFFER

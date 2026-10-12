@@ -68,6 +68,12 @@ def get_servers_config() -> Dict[str, Any]:
 class MCPClient:
     """One stdio connection to an MCP server (Content-Length + NDJSON)."""
 
+    # Defensive cap: if this many bytes accumulate without forming a
+    # complete message, the peer is spewing garbage — drop it rather than
+    # growing memory without bound.
+    _MAX_BUFFER = 16 << 20
+    _READ_CHUNK = 8192
+
     def __init__(
         self,
         command: str,
@@ -111,14 +117,19 @@ class MCPClient:
 
     # ------------------------------------------------------------------ transport
     def _read_loop(self) -> None:
-        """Parse either Content-Length frames or newline-delimited JSON."""
+        """Parse either Content-Length frames or newline-delimited JSON.
+
+        Reads in 8 KiB chunks (not byte-at-a-time: a syscall per byte made
+        large tool results painfully slow) and guards against unbounded
+        buffer growth from a misbehaving server.
+        """
         stdout = self.proc.stdout
         if stdout is None:
             return
         buffer = b""
         try:
             while not self._closed:
-                chunk = stdout.read(1)
+                chunk = stdout.read(self._READ_CHUNK)
                 if not chunk:
                     break
                 buffer += chunk
@@ -127,14 +138,16 @@ class MCPClient:
                     if msg is None:
                         break
                     self._dispatch_message(msg)
+                if len(buffer) > self._MAX_BUFFER:
+                    buffer = b""
         except Exception:
             pass
 
     def _try_extract_message(self, buffer: bytes):
         """Return (message_dict|None, remaining_buffer)."""
-        # Content-Length: N\r\n\r\n<body>
-        lower = buffer.lower()
-        if lower.startswith(b"content-length:"):
+        # Content-Length: N\r\n\r\n<body> — only lowercase the header prefix,
+        # not the whole buffer (this runs once per message).
+        if buffer[:15].lower().startswith(b"content-length:"):
             header_end = buffer.find(b"\r\n\r\n")
             if header_end < 0:
                 header_end = buffer.find(b"\n\n")
