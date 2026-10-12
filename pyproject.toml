@@ -30,7 +30,6 @@ dependencies = [
     "SpeechRecognition>=3.16.1",
     "prompt_toolkit>=3.0.52",
     "dropbox>=12.0.2",
-    "markdown>=3.10.2",
     "keyring>=25.7.0",
     "paramiko>=5.0.0",
     "psutil>=7.2.2",
@@ -45,11 +44,12 @@ dependencies = [
 dev = [
     "pytest",
     "black",
-    "jsonschema"
+    "jsonschema",
+    "cryptography",  # tests/test_server.py exercises server/oidc token crypto
 ]
 
 [project.urls]
-Homepage = "https://github.com/nave433-blip/cortana"
+Homepage = "https://github.com/nave433-blip/J4D3ai"
 
 [project.scripts]
 jade = "cli:app"

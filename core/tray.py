@@ -31,6 +31,10 @@ def tray_supported() -> Tuple[bool, str]:
         import pystray  # noqa: F401
     except ImportError:
         return False, "the 'pystray' package is not installed (pip install pystray)"
+    try:
+        from PIL import Image  # noqa: F401 — tray icon needs Pillow
+    except ImportError:
+        return False, "the 'Pillow' package is not installed (pip install Pillow)"
     os_name, slot = platform_slot()
     if os_name == "linux":
         import shutil

@@ -30,7 +30,6 @@ PYTHON_DEPS: Dict[str, str] = {
     "paramiko": "paramiko",
     "psutil": "psutil",
     "ddgs": "ddgs",
-    "markdown": "markdown",
     "keyring": "keyring",
     "litellm": "litellm",
 }

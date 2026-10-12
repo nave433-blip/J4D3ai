@@ -527,12 +527,38 @@ def test_tray_supported_is_honest():
     from core.tray import tray_supported
     try:
         import pystray  # noqa: F401
-        have = True
+        have_pystray = True
     except ImportError:
-        have = False
+        have_pystray = False
+    try:
+        from PIL import Image  # noqa: F401
+        have_pil = True
+    except ImportError:
+        have_pil = False
     ok, reason = tray_supported()
-    assert ok == have
+    assert ok == (have_pystray and have_pil)
     assert isinstance(reason, str) and reason.strip()
+
+
+def test_tray_supported_requires_pillow(monkeypatch):
+    # pystray present but Pillow missing -> honest "not supported".
+    import sys
+    import types
+    import core.tray as tray_mod
+    fake_pystray = types.ModuleType("pystray")
+    monkeypatch.setitem(sys.modules, "pystray", fake_pystray)
+    # Hide PIL even if installed.
+    real_import = __import__
+
+    def _no_pil(name, *a, **k):
+        if name == "PIL" or name.startswith("PIL."):
+            raise ImportError("blocked for test")
+        return real_import(name, *a, **k)
+
+    monkeypatch.setattr("builtins.__import__", _no_pil)
+    ok, reason = tray_mod.tray_supported()
+    assert ok is False
+    assert "Pillow" in reason
 
 
 def test_tray_icon_fallback_glyph_without_assets(monkeypatch, tmp_path):
