@@ -5,6 +5,7 @@ the exact URL, auth scheme, and headers the validator sends, plus actionable
 error behavior.
 """
 import pytest
+import requests
 from unittest.mock import patch, MagicMock
 
 import core.services as services
@@ -28,8 +29,8 @@ def _resp(status=200, payload=None):
 def net(monkeypatch):
     """Mock requests.get/post inside core.services."""
     fake = MagicMock()
-    monkeypatch.setattr(services.requests, "get", fake.get)
-    monkeypatch.setattr(services.requests, "post", fake.post)
+    monkeypatch.setattr(requests, "get", fake.get)
+    monkeypatch.setattr(requests, "post", fake.post)
     fake.get.return_value = _resp(200)
     fake.post.return_value = _resp(200, {"choices": [{"message": {"content": "ok"}}]})
     return fake

@@ -56,7 +56,7 @@ def _ollama_provider():
 def test_ollama_down_actionable(monkeypatch):
     def _boom(*a, **k):
         raise requests.ConnectionError("refused")
-    monkeypatch.setattr(brain_mod.requests, "post", _boom)
+    monkeypatch.setattr(requests, "post", _boom)
     monkeypatch.setattr(brain_mod, "load_config", lambda: {})
     out = _ollama_provider().ask("hello")
     assert "Couldn't reach Ollama" in out
@@ -70,7 +70,7 @@ def test_ollama_model_missing_actionable(monkeypatch):
         status_code = 404
         def raise_for_status(self): pass
         def json(self): return {"error": "not found"}
-    monkeypatch.setattr(brain_mod.requests, "post", lambda *a, **k: _R())
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _R())
     monkeypatch.setattr(brain_mod, "load_config", lambda: {})
     out = _ollama_provider().ask("hello")
     assert "doesn't have model 'llama3'" in out
@@ -83,7 +83,7 @@ def test_ollama_success_still_works(monkeypatch):
         status_code = 200
         def raise_for_status(self): pass
         def json(self): return {"message": {"content": "hi there"}}
-    monkeypatch.setattr(brain_mod.requests, "post", lambda *a, **k: _R())
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _R())
     monkeypatch.setattr(brain_mod, "load_config", lambda: {})
     assert _ollama_provider().ask("hello") == "hi there"
 

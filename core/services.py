@@ -435,6 +435,7 @@ def validate_key_provider(provider: str, key: str, timeout: float = 8.0) -> Dict
 def validate_generic_host(host: str, timeout: float = 2.0) -> Dict:
     """Probe a host-based provider. Only 2xx counts as reachable — a 4xx/5xx
     means the server answered but the endpoint is wrong, which is actionable."""
+    import requests  # lazy: ~0.2s import; network paths only
     try:
         r = requests.get(host, timeout=timeout)
     except Exception as e:
@@ -497,6 +498,7 @@ def validate_provider_connection(provider: str, extra: Optional[Dict[str, Any]] 
 # Model listing
 # --------------------
 def list_models_for_provider(provider: str, extra: Optional[Dict[str, Any]] = None) -> Dict:
+    import requests  # lazy: ~0.2s import; network paths only
     provider = provider.lower()
     extra = extra or {}
     if provider == "openai":
@@ -592,6 +594,7 @@ def call_model(provider: str, messages_or_text: Any, model: Optional[str] = None
 
 def install_ollama_model(model_name: str, host: str = "http://localhost:11434"):
     """Downloads an Ollama model if not present."""
+    import requests  # lazy: ~0.2s import; network paths only
     console.print(f"[dim]Checking for model: {model_name}...[/dim]")
     try:
         response = requests.post(f"{host.rstrip('/')}/api/pull", json={"name": model_name}, timeout=300, stream=True)
