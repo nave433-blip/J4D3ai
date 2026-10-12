@@ -2,7 +2,7 @@
 #
 # JADE: one-line installer for macOS & Linux
 #
-#   curl -fsSL https://raw.githubusercontent.com/nave433-blip/jarvis-dev/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/nave433-blip/J4D3ai/main/install.sh | bash
 #
 # What it does:
 #   1. Installs system audio/Python deps via your package manager (sudo)
@@ -50,7 +50,7 @@ JARVIS_REF="$JADE_REF"    # internal alias
 SKIP_DEPS="${JADE_SKIP_SYSTEM_DEPS:-${JARVIS_SKIP_SYSTEM_DEPS:-0}}"
 SKIP_LINK="${JADE_SKIP_GLOBAL_LINK:-${JARVIS_SKIP_GLOBAL_LINK:-0}}"
 OS_TYPE="$(uname -s | tr '[:upper:]' '[:lower:]')"
-REPO_URL="https://github.com/nave433-blip/jarvis-dev.git"
+REPO_URL="https://github.com/nave433-blip/J4D3ai.git"
 
 info "🚀 Installing JADE on ${OS_TYPE} → ${JARVIS_DIR}"
 

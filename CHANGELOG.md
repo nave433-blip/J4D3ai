@@ -1,8 +1,45 @@
-# Changelog — CORTANA
+# Changelog — JADE AI (J4D3)
 
-All notable changes, newest first. Dates are when the work landed on the
-`audit/fix` branch. `JARVIS.md` (the user's own instructions file) is never
-modified by any of this work.
+All notable changes, newest first. `JARVIS.md` (the user's own instructions
+file) is never modified by any of this work.
+
+## [JADE] — 2026-10-12 (unreleased — parent cuts the GitHub release)
+
+**The JADE AI release.** Cortana is retired as a product name; the app is now
+**JADE AI** (stylized **J4D3**), an independent consumer AI app. GitHub repo
+renamed `nave433-blip/cortana` → **`nave433-blip/J4D3ai`**. Config migrates
+forward automatically (`~/.jarvis` → `~/.cortana` → `~/.jade`); the CLI entry
+point is now `jade`.
+
+- **Clean-room Google auth**: dropped `google-auth-oauthlib` and
+  `google-api-python-client` — OAuth2 PKCE and token refresh are now direct
+  REST in `core/google_auth.py` / `core/connectors/oauth.py`. No proprietary
+  SDK blobs under the Google integrations.
+- **Voice stack** (`core/voice/`): plugin architecture (wake-word → capture →
+  VAD → STT → TTS) with honest unavailable-errors; OS-native TTS default
+  (`say`/`espeak-ng`/SAPI); barge-in with echo grace; PowerShell quoting
+  hardened on Windows.
+- **OpenAI-compatible API server** (`jade api`): `POST /v1/chat/completions`
+  (now with **SSE streaming** via `stream: true`), `GET /v1/models`,
+  `POST /v1/audio/speech`, `POST /v1/audio/transcriptions`,
+  `GET /v1/audio/voices`. Bearer-token auth, loopback default, clear 400/502
+  errors, 1 MiB body cap.
+- **MCP client** (`core/mcp_client.py`): stdio servers with Content-Length /
+  NDJSON framing; chunked reads (was byte-at-a-time) and a 16 MiB buffer
+  guard.
+- **Connectors**: Google connectors (Gmail, Calendar, Contacts, Docs, Drive,
+  Tasks, YouTube) now **auto-refresh expired access tokens** instead of dying
+  an hour after connect. Microsoft Graph/OneDrive/Outlook/Teams/OneNote
+  connectors with honest connected/disconnected status.
+- **Startup**: `jade --help` imports in ~0.45s (was ~1.55s) — `prompt_toolkit`
+  and `requests` load lazily only on the paths that need them.
+- **Installer** (`install.sh`): one-line macOS/Linux install (venv + `jade`
+  launcher + smoke test); repo URL updated to `nave433-blip/J4D3ai`.
+- **Tests**: 782 passed, 1 skipped. (12 failures are pre-existing environment
+  issues — REPL tests needing a TTY and the litellm loader test where litellm
+  isn't installed — verified identical on unmodified code.)
+
+## [CORTANA — archived below]
 ## [desktop-voice] — 2026-09-25 (branch `feature/desktop-voice`, not yet merged)
 
 **Round B: desktop app + voice, everything plus the kitchen sink.**

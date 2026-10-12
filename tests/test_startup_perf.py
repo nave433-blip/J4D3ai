@@ -64,3 +64,15 @@ def test_cli_help_fast_enough():
                    cwd="/home/hatch/workspace/jarvis-dev", timeout=120)
     assert time.time() - t0 < 10
     assert "LiteLLM" not in r.stderr
+
+
+def test_cli_help_skips_dependency_checks():
+    # --help must be instant and side-effect free: it must not trigger the
+    # self-repairing dependency check (which pip-installs missing packages).
+    r = subprocess.run([PY, "-m", "cli", "--help"], capture_output=True,
+                       text=True, cwd="/home/hatch/workspace/jarvis-dev",
+                       timeout=120)
+    assert r.returncode == 0
+    combined = r.stdout + r.stderr
+    assert "Running dependency checks" not in combined
+    assert "pip install" not in combined

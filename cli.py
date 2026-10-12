@@ -134,6 +134,10 @@ def main(ctx: typer.Context,
          skip_startup: bool = typer.Option(False, "--skip-startup", help="Skip dependency/update startup checks"),
          yes: bool = typer.Option(False, "--yes", "-y", help="Auto-approve confirmation prompts (dev only; credential/trust prompts still ask)")):
     """JADE: Your local AI engineer."""
+    # --help must be instant and side-effect free: never run the dependency
+    # repair / update checks just to print help text.
+    if "--help" in sys.argv or "-h" in sys.argv:
+        return
     if skip_startup:
         os.environ["JADE_SKIP_STARTUP"] = "1"
     if yes:
