@@ -85,6 +85,21 @@ def _platform() -> str:
     return "linux"
 
 
+def _ps_quote(value: str) -> str:
+    """Quote a string for a PowerShell single-quoted literal.
+
+    Doubles embedded single quotes (the PowerShell escape) so a hostile
+    voice name or path cannot break out of the string and inject commands.
+    """
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _sapi_rate(profile: Optional[VoiceProfile]) -> str:
+    if profile and profile.rate:
+        return str(max(-10, min(10, profile.rate // 20)))
+    return ""
+
+
 class PlatformTTS(TTSEngine):
     """OS-native speech synthesis via stdlib subprocess. No extra packages.
 
@@ -123,17 +138,18 @@ class PlatformTTS(TTSEngine):
         return cmd
 
     def _windows_cmd(self, text: str, profile: Optional[VoiceProfile]):
-        # SAPI via PowerShell; single-quoted text is escaped for safety.
-        safe = text.replace("'", "''")
+        # SAPI via PowerShell. Voice id and text go through _ps_quote so a
+        # hostile voice name cannot break out of the string literal.
         ps = (
             "Add-Type -AssemblyName System.Speech; "
             "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
         )
         if profile and profile.voice_id:
-            ps += f"$s.SelectVoice('{profile.voice_id}'); "
-        if profile and profile.rate:
-            ps += f"$s.Rate = {[max(-10, min(10, profile.rate // 20))][0]}; "
-        ps += f"$s.Speak('{safe}');"
+            ps += f"$s.SelectVoice({_ps_quote(profile.voice_id)}); "
+        rate = _sapi_rate(profile)
+        if rate:
+            ps += f"$s.Rate = {rate}; "
+        ps += f"$s.Speak({_ps_quote(text)});"
         return ["powershell", "-NoProfile", "-Command", ps]
 
     def _cmd(self, text: str, profile: Optional[VoiceProfile]):
@@ -187,18 +203,17 @@ class PlatformTTS(TTSEngine):
                 cmd.append(text)
                 mime = "audio/aiff"
             elif plat == "windows":
-                safe_text = text.replace("'", "''")
-                safe_path = path.replace("'", "''")
                 ps = (
                     "Add-Type -AssemblyName System.Speech; "
                     "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
                 )
                 if profile and profile.voice_id:
-                    ps += f"$s.SelectVoice('{profile.voice_id}'); "
-                if profile and profile.rate:
-                    ps += f"$s.Rate = {[max(-10, min(10, profile.rate // 20))][0]}; "
-                ps += (f"$s.SetOutputToWaveFile('{safe_path}'); "
-                       f"$s.Speak('{safe_text}'); $s.Dispose();")
+                    ps += f"$s.SelectVoice({_ps_quote(profile.voice_id)}); "
+                rate = _sapi_rate(profile)
+                if rate:
+                    ps += f"$s.Rate = {rate}; "
+                ps += (f"$s.SetOutputToWaveFile({_ps_quote(path)}); "
+                       f"$s.Speak({_ps_quote(text)}); $s.Dispose();")
                 cmd = ["powershell", "-NoProfile", "-Command", ps]
                 mime = "audio/wav"
             else:
@@ -326,17 +341,23 @@ class Pyttsx3TTS(TTSEngine):
 
 
 def default_tts() -> TTSEngine:
-    """Best available TTS engine, or an honest unavailable stand-in."""
-    for label, make in (("platform", PlatformTTS), ("pyttsx3", Pyttsx3TTS)):
-        try:
-            engine = make()
-            # PlatformTTS construction never fails; verify a synthesizer exists.
-            if label == "platform":
-                try:
-                    engine._cmd("test", None)
-                except VoiceError as e:
-                    raise e
-            return engine
-        except VoiceError:
-            continue
-    return UnavailableTTS("no speech synthesizer found on this system")
+    """Best available TTS engine, or an honest unavailable stand-in.
+
+    Tries the OS-native synthesizer first (no extra packages), then
+    pyttsx3. The platform engine is probed with a no-op command build so
+    we only claim it when a real synthesizer binary exists.
+    """
+    platform_error: Optional[VoiceError] = None
+    try:
+        engine = PlatformTTS()
+        engine._cmd("test", None)  # probe: raises VoiceError if unusable
+        return engine
+    except VoiceError as e:
+        platform_error = e
+    try:
+        return Pyttsx3TTS()
+    except VoiceError:
+        pass
+    reason = str(platform_error) if platform_error \
+        else "no speech synthesizer found on this system"
+    return UnavailableTTS(reason)

@@ -27,7 +27,8 @@ class Conversation:
                  vad: Optional[EnergyVAD] = None,
                  profile: Optional[VoiceProfile] = None,
                  think: Optional[Callable[[str], str]] = None,
-                 on_event: Optional[Callable[[str, str], None]] = None):
+                 on_event: Optional[Callable[[str, str], None]] = None,
+                 barge_in_grace: float = 0.4):
         self.capture = capture
         self.stt = stt
         self.tts = tts
@@ -35,6 +36,10 @@ class Conversation:
         self.profile = profile
         self.think = think or (lambda text: text)
         self.on_event = on_event or (lambda kind, msg: None)
+        # Seconds after speech starts during which VAD triggers are ignored.
+        # The first moments of playback are almost always the speaker's own
+        # output leaking into the mic, not a real interruption.
+        self.barge_in_grace = max(0.0, barge_in_grace)
         self._stop = threading.Event()
 
     def stop(self) -> None:
@@ -59,12 +64,17 @@ class Conversation:
         """Speak ``text``; if the user interrupts, stop and return what they
         said. Returns None when speech completed without interruption."""
         handle = self.tts.speak_handle(text, self.profile)
+        started = time.monotonic()
         try:
             # Poll the mic while speaking: speech during playback = barge-in.
+            # VAD hits inside the grace window are ignored — that's the
+            # speaker's own output leaking into the microphone.
             for chunk in self.capture.stream():
                 if handle.done or self._stop.is_set():
                     break
                 if self.vad.is_speech(chunk):
+                    if time.monotonic() - started < self.barge_in_grace:
+                        continue
                     handle.stop()
                     self._emit("barge_in", "user interrupted")
                     try:

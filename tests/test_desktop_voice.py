@@ -371,7 +371,9 @@ def test_conversation_push_to_talk_flow():
 def test_conversation_barge_in_stops_speech():
     events = []
     tts = _ScriptTTS()
-    # First stream chunk = user interrupting while she speaks.
+    # First stream chunk = user interrupting while she speaks. Grace is 0
+    # here so the test exercises the barge-in mechanics deterministically;
+    # grace-window behavior has its own tests below.
     convo = conv_mod.Conversation(
         capture=_ScriptCapture([_loud_chunk()]),
         stt=_ScriptSTT(["never mind"]),
@@ -379,6 +381,7 @@ def test_conversation_barge_in_stops_speech():
         vad=_AlwaysSpeechVAD(),
         think=lambda t: "long answer",
         on_event=lambda k, m: events.append((k, m)),
+        barge_in_grace=0,
     )
     interrupted = convo._speak_with_barge_in("long answer")
     assert tts.handles and tts.handles[0].stopped, "barge-in must stop speech"
