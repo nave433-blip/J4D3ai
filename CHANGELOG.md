@@ -42,8 +42,13 @@ point is now `jade`.
   (was: transcribe-only). Long replies trimmed at a word boundary.
 - **CLI UX**: `jade --help` no longer triggers the dependency self-repair
   (was: ~60s of pip retries just to print help).
-- **Tests**: 782 passed, 1 skipped. (12 failures are pre-existing environment
-  issues — REPL tests needing a TTY and the litellm loader test where litellm
+- **Dependencies (audited 2026-10-12)**: full inventory — every runtime
+  import is now declared or an acknowledged guarded-optional; removed the
+  unused `markdown` dependency; `cryptography` added to dev extras;
+  new `tests/test_dependency_audit.py` permanently guards against
+  undeclared-import bugs; clean-install venv verified complete.
+- **Tests**: 794 passed, 1 skipped. (12 failures are pre-existing environment
+  issues — REPL tests needing a TTY and litellm tests where litellm
   isn't installed — verified identical on unmodified code.)
 
 ## [CORTANA — archived below]
